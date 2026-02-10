@@ -7,8 +7,8 @@ import part0_assembler.tests.encoder_test;
  */
 public class Main {
     public static void main(String[] args) throws Exception {
+        System.out.println("PART 0");
         opcode_table_test.main(args);
-        System.out.println();
         System.out.println();
         encoder_test.main(args);
     }

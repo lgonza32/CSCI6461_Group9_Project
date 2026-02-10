@@ -1,18 +1,65 @@
-## Getting Started
+# Assembly Project for CSCI 6461
+- Group 9
 
-Welcome to the VS Code Java world. Here is a guideline to help you get started to write Java code in Visual Studio Code.
+## Part 0 Overview
+- Under part0_assembler
+- Goal: Implementing instruction translation through converting assembly instructions as documented in the ISA into 16-bit machine instructions and printed in octal.
+- Additional information as noted in Design Notes
 
-## Folder Structure
+## Project Structure
+```
+src/
+  part0_assembler/
+     ├─ Encoder.java
+     ├─ opcode_table.java
+     ├─ part0_test.asm (test case deliverable)
+     ├─ part0_listing.txt (listing file for the test case)
+     └─ tests/
+         ├─ encoder_test.java
+         └─ opcode_table_test.java
+  Main.java  
 
-The workspace contains two folders by default, where:
+part0_assembler.jar
+```
 
-- `src`: the folder to maintain sources
-- `lib`: the folder to maintain dependencies
+## How to build (Windows powershell specific)
+`javac -d out (Get-ChildItem src -Recurse -Filter *.java).FullName`
+Compiles all source files under `/src/` into `/out/` directory
 
-Meanwhile, the compiled output files will be generated in the `bin` folder by default.
+## How to run
+Assembler is packaged as a runnable JAR
+`java -jar part0_assembler.jar`
+This executes the compiled `Main.java`, which automatically runs all tests found within the test folder.
 
-> If you want to customize the folder structure, open `.vscode/settings.json` and update the related settings there.
+## Test Case
+`part0_test.asm`
+Assembly test case for part 0 for project deliverable
+```
+LOC 6
+LDR 3,0,31
+LDR 3,0,31,1
+```
 
-## Dependency Management
+## Listing File
+`part0_listing.txt`
+Assembler listing output for test case
+- listing values produced using encoder output printed by the tests executed in `Main.java`
+```
+ADDR     CODE     SOURCE
+000006   003437   LDR 3,0,31
+000007   003637   LDR 3,0,31,1
+```
+- `ADDR`: intended load address in octal (from `LOC`)
+- `CODE`: 16-bit machine instruction in octal
+- `SOURCE`: original assembly instruction
 
-The `JAVA PROJECTS` view allows you to manage your dependencies. More details can be found [here](https://github.com/microsoft/vscode-java-dependency#manage-dependencies).
+## Output Example
+When running the JAR, the program should print something like this:
+![Output](images\image.png)
+
+## Summary
+To use:
+1. Compile project from `/src/`
+2. Run packaged JAR
+3. Review output and the provided part0_listing.txt
+
