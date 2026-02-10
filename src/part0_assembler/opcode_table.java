@@ -59,4 +59,12 @@ public final class opcode_table {
         // map.put("LDFR",50);  // Load Floating Register From Memory
         // map.put("STFR",51);  // Store Floating Register To Memory
     }
+
+    public int get(String mnemonic) {
+        Integer opcode = map.get(mnemonic.toUpperCase());
+        if (opcode == null) {
+            throw new RuntimeException("Unknown opcode: " + mnemonic);
+        }
+        return opcode;
+    }
 }
