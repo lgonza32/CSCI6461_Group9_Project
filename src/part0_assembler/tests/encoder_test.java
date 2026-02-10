@@ -11,6 +11,7 @@ public final class encoder_test {
         int test0 = enc.encodeFormat("LDR", goodLDR);
         String test0_binary = String.format("%16s",
                 Integer.toBinaryString(test0)).replace(' ', '0');
+        
         String test0_opcodeBits = test0_binary.substring(0, 6);
         String test0_rBits = test0_binary.substring(6, 8);
         String test0_ixBits = test0_binary.substring(8, 10);
@@ -19,7 +20,7 @@ public final class encoder_test {
 
         // verify encoder produces correctly as format
         System.out.println("-----TESTS FOR ENCODER-----");
-        System.out.println("Instruction: LDR 3,0,31");
+        System.out.println("Instruction:       LDR 3,0,31");
         System.out.println("Encoded (decimal): " + test0);
         System.out.println("Encoded (octal):   " + Integer.toOctalString(test0));
         System.out.println("Encoded (binary):  " + test0_binary);
@@ -34,17 +35,17 @@ public final class encoder_test {
         System.out.println("-----TEST FOR I BIT-----");
         List<String> ibitLDR = Arrays.asList("3", "0", "31", "1");
         int test_ibit = enc.encodeFormat("LDR", ibitLDR);
-        String binary = String.format("%16s",
+        String test_ibit_binary = String.format("%16s",
                 Integer.toBinaryString(test_ibit)).replace(' ', '0');
 
-        String test_ibit_opcodeBits = binary.substring(0, 6);
-        String test_ibit_rBits = binary.substring(6, 8);
-        String test_ibit_ixBits = binary.substring(8, 10);
-        String test_ibit_iBit = binary.substring(10, 11);
-        String test_ibit_addrBits = binary.substring(11, 16);
+        String test_ibit_opcodeBits = test_ibit_binary.substring(0, 6);
+        String test_ibit_rBits = test_ibit_binary.substring(6, 8);
+        String test_ibit_ixBits = test_ibit_binary.substring(8, 10);
+        String test_ibit_iBit = test_ibit_binary.substring(10, 11);
+        String test_ibit_addrBits = test_ibit_binary.substring(11, 16);
 
-        System.out.println("Instruction: LDR 3,0,31,1 (indirect)");
-        System.out.println("Encoded (binary): " + binary);
+        System.out.println("Instruction:      LDR 3,0,31,1 (indirect)");
+        System.out.println("Encoded (binary): " + test_ibit_binary);
         System.out.println("Field breakdown:");
         System.out.println("  opcode : " + test_ibit_opcodeBits);
         System.out.println("  r      : " + test_ibit_rBits);
