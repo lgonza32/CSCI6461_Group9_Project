@@ -21,24 +21,24 @@ public final class encoder_test {
         List<String> badLDR2 = Arrays.asList("1", "0", "32");
         List<String> badLDR3 = Arrays.asList("1", "2");
 
+        // R is out of range (valid: 0..3)
         try {
-            // R is out of range (valid: 0..3)
             int test1 = enc.encodeFormat("LDR", badLDR1);
             System.out.println("ERROR: Expected exception for invalid R, but none occurred.");
         } catch (RuntimeException e) {
             System.out.println("PASS (invalid R): " + e.getMessage());
         }
 
+        // Address is out of range (valid: 0..31)
         try {
-            // Address is out of range (valid: 0..31)
             int test2 = enc.encodeFormat("LDR", badLDR2);
             System.out.println("ERROR: Expected exception for invalid address, but none occurred.");
         } catch (RuntimeException e) {
             System.out.println("PASS (invalid address): " + e.getMessage());
         }
 
+        // Wrong operand count
         try {
-            // Wrong operand count
             int test3 = enc.encodeFormat("LDR", badLDR3);
             System.out.println("ERROR: Expected exception for bad operand count, but none occurred.");
         } catch (RuntimeException e) {
