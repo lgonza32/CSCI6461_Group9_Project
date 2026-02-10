@@ -17,7 +17,7 @@ public final class opcode_table {
     */
     private final Map<String, Integer> map = new HashMap<>();
    /**
-    * Constructor
+    * Constructor:
     * - Populate opcode table given from ISA document
     */
     public opcode_table() {
@@ -76,8 +76,10 @@ public final class opcode_table {
 
    /**
     * Lookup for opcode by mnemonic.
+    * 
     * @param mnemonic instruction mnemonic
-    * @return opcode value
+    * @return opcode value (octal)
+    * @throws RuntimeException if mnemonic is unknown.
     */
     public int get(String mnemonic) {
         Integer opcode = map.get(mnemonic.toUpperCase());
