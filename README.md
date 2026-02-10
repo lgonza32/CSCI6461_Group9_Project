@@ -5,7 +5,7 @@
 ## Prerequisites for Running
 - Java (JDK 1.8 or later)
 - Git
-- Any provided by windows
+- Any CLI provided by windows
 
 ## Part 0 Overview
 - Under part0_assembler
