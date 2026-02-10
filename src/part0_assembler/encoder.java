@@ -35,18 +35,18 @@ public final class Encoder {
      */
     private int pack(int opcode, int r, int ix, int i, int addr) {
         // Mask each field to its legal bit width to prevent overflow
-        opcode &= 0x3F; // 6 bits
-        r &= 0x03;      // 2 bits
-        ix &= 0x03;     // 2 bits
-        i &= 0x01;      // 1 bit
-        addr &= 0x1F;   // 5 bits
+        opcode &= 0x3F;
+        r &= 0x03;   
+        ix &= 0x03; 
+        i &= 0x01;  
+        addr &= 0x1F;
 
         // Shift each field into position and combine with bitwise OR
-        return (opcode << 10) // bits 15-10
-                | (r << 8)    // bits 9-8
-                | (ix << 6)   // bits 7-6
-                | (i << 5)    // bit 5
-                | addr;       // bits 4-0
+        return (opcode << 10)
+                | (r << 8)
+                | (ix << 6)
+                | (i << 5)
+                | addr;
     }
 
     /**

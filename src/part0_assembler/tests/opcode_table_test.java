@@ -5,6 +5,7 @@ public final class opcode_table_test {
     public static void main(String[] args) {
         // verify opcode table construct
         opcode_table table = new opcode_table();
+        System.out.println("-----TESTS FOR OPCODE TABLE VERIFICATION-----");
         System.out.println("HLT test (octal): " + Integer.toOctalString(table.get("HLT")));
         System.out.println("LDR test (octal): " + Integer.toOctalString(table.get("LDR")));
         System.out.println("STR test (octal): " + Integer.toOctalString(table.get("STR")));
@@ -12,6 +13,7 @@ public final class opcode_table_test {
         System.out.println("LDX test (octal): " + Integer.toOctalString(table.get("LDX")));
         System.out.println("STX test (octal): " + Integer.toOctalString(table.get("STX")));
 
+        System.out.println("-----TESTS FOR EXCEPTIONS HANDLING-----");
         // fail test
         try {
             table.get("asdf");

@@ -6,21 +6,53 @@ import java.util.Arrays;
 public final class encoder_test {
     public static void main(String[] args) {
         Encoder enc = new Encoder();
-        List<String> goodLDR = Arrays.asList("1", "2", "10");
+        // Using example provided in ISA
+        List<String> goodLDR = Arrays.asList("3", "0", "31");
         int test0 = enc.encodeFormat("LDR", goodLDR);
+        String test0_binary = String.format("%16s",
+                Integer.toBinaryString(test0)).replace(' ', '0');
+        String test0_opcodeBits = test0_binary.substring(0, 6);
+        String test0_rBits = test0_binary.substring(6, 8);
+        String test0_ixBits = test0_binary.substring(8, 10);
+        String test0_iBit = test0_binary.substring(10, 11);
+        String test0_addrBits = test0_binary.substring(11, 16);
 
         // verify encoder produces correctly as format
-        System.out.println("Instruction: LDR 1,2,10");
+        System.out.println("-----TESTS FOR ENCODER-----");
+        System.out.println("Instruction: LDR 3,0,31");
         System.out.println("Encoded (decimal): " + test0);
         System.out.println("Encoded (octal):   " + Integer.toOctalString(test0));
-        System.out.println("Encoded (binary):  " + String.format("%16s",
-                Integer.toBinaryString(test0)).replace(' ', '0'));
+        System.out.println("Encoded (binary):  " + test0_binary);
+        System.out.println("Field breakdown:");
+        System.out.println("  opcode : " + test0_opcodeBits);
+        System.out.println("  r      : " + test0_rBits);
+        System.out.println("  ix     : " + test0_ixBits);
+        System.out.println("  I      : " + test0_iBit);
+        System.out.println("  addr   : " + test0_addrBits);
 
         // Indirect adressing test
-        List<String> ibitLDR = Arrays.asList("1", "2", "10", "1");
-        int ibitTest = enc.encodeFormat("LDR", ibitLDR);
-        System.out.println("[I-bit Test] LDR 1,2,10,1 (octal): " + Integer.toOctalString(ibitTest));
+        System.out.println("-----TEST FOR I BIT-----");
+        List<String> ibitLDR = Arrays.asList("3", "0", "31", "1");
+        int test_ibit = enc.encodeFormat("LDR", ibitLDR);
+        String binary = String.format("%16s",
+                Integer.toBinaryString(test_ibit)).replace(' ', '0');
 
+        String test_ibit_opcodeBits = binary.substring(0, 6);
+        String test_ibit_rBits = binary.substring(6, 8);
+        String test_ibit_ixBits = binary.substring(8, 10);
+        String test_ibit_iBit = binary.substring(10, 11);
+        String test_ibit_addrBits = binary.substring(11, 16);
+
+        System.out.println("Instruction: LDR 3,0,31,1 (indirect)");
+        System.out.println("Encoded (binary): " + binary);
+        System.out.println("Field breakdown:");
+        System.out.println("  opcode : " + test_ibit_opcodeBits);
+        System.out.println("  r      : " + test_ibit_rBits);
+        System.out.println("  ix     : " + test_ibit_ixBits);
+        System.out.println("  I      : " + test_ibit_iBit + "  <-- indirect bit");
+        System.out.println("  addr   : " + test_ibit_addrBits);
+
+        System.out.println("-----TESTS FOR EXCEPTIONS HANDLING-----");
         // verify bad inputs are rejected
         List<String> badLDR1 = Arrays.asList("4", "0", "10");
         List<String> badLDR2 = Arrays.asList("1", "0", "32");
