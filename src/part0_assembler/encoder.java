@@ -3,7 +3,7 @@ import java.util.*;
 
 /**
  * This class is responsible for converting supported assembly instructions
- * into their 16-bit instruction representation
+ * into their 16-bit instruction representation.
  * 
  * This does not support all ISA instruction formats, and only supports
  * the basic instruction format as referenced in Load/Store Instruction.
@@ -13,17 +13,12 @@ import java.util.*;
  *      OP r, x, address[,I]
  *      opcode:6 | r:2 | ix:2 | I:1 | address: 5
  * 
- *      opcode (6 bits) = specifies possible instruction
- *      IX (2 bits) = specifies one of three index registers (x1-x3)
- *      R (2 bits) = specifies one of four general purpose registers (r0-r3)
- *      I (1 bit) = if I=1, specifies indirect addressing
- *                  -> otherwise, no indirect addressing
- *      addr (5 bits) = specifies one of 32 locations
+ * Assembler encodes these fields.
  */
-public final class encoder {
+public final class Encoder {
 
     /** Opcode lookup table */
-    private final opcode_table op_table = new opcode_table();
+    private final Opcode_table op_table = new Opcode_table();
 
     /**
      * Pack individual instruction fields into 16-bits.
@@ -31,10 +26,10 @@ public final class encoder {
      * Each field is masked to its legal bit-width to prevent overflow
      * or accidental corruption of neighboring fields.
      * 
-     * @param opcode opcode value (bits 15-10)
-     * @param r      register field (bits 9-8)
-     * @param ix     index register field (bits 7-6)
-     * @param i      indirect bit (bit 5)
+     * @param opcode opcode value (6 bits -> bits 15-10)
+     * @param r      register field (2 bits -> bits 9-8)
+     * @param ix     index register field (2 bits -> bits 7-6)
+     * @param i      indirect bit (5 bits -> bits 4-0)
      * @param addr   address field (bits 4-0)
      * @return       16-bit encoded instruction
      */
@@ -62,7 +57,7 @@ public final class encoder {
      * Constraints:
      * - r:     0-3
      * - ix:    0-3 (0 means no indexing)
-     * - I:     0 or 1
+     * - I:     0 or 1 (defaults to 0)
      * - addr:  0-31 (5 bit field)
      * 
      * @param mnemonic          instruction mnemonic
@@ -70,7 +65,7 @@ public final class encoder {
      * @return                  encoded 16-bit machine instruction word
      * @throws RuntimeException if format is out of range
      */
-    private int encodeFormat(String mnemonic, List<String> args) {
+    public int encodeFormat(String mnemonic, List<String> args) {
         int opcode = op_table.get(mnemonic);
 
         // Basic instrction format requires 3-4 operands
@@ -78,7 +73,7 @@ public final class encoder {
             throw new RuntimeException("Expected r,x, address[,I] for " + mnemonic);
         } 
 
-        // Parse and compute effective address
+        // Parse operands
         int r = Integer.parseInt(args.get(0));
         int ix = Integer.parseInt(args.get(1));
         int i = (args.size() == 4) 
