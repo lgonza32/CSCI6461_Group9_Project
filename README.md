@@ -29,7 +29,7 @@ part0_assembler.jar
 ```
 
 ## How to build (Windows powershell specific)
-`javac -d out (Get-ChildItem src -Recurse -Filter *.java).FullName`
+`javac -d out (Get-ChildItem src -Recurse -Filter *.java).FullName` <br>
 Compiles all source files under `/src/` into `/out/` directory
 
 ## How to run
