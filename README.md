@@ -36,7 +36,7 @@ Compiles all source files under `/src/` into `/out/` directory
 Assembler is packaged as a runnable JAR
 With any Windows CLI:
 1. Navigate to location to save repo
-2. Clone repository `[code]`
+2. Clone repository `https://github.com/lgonza32/CSCI6461_Group9_Project.git`
 3. Run `java -jar CSCI6461_Group9_Project`
 This executes the compiled `Main.java`, which automatically runs all tests found within the test folder.
 
@@ -68,7 +68,8 @@ When running the JAR, the program should print something like this: <br>
 
 ## Summary
 To use:
-1. Compile project from `/src/`
-2. Run packaged JAR
-3. Review output and the provided part0_listing.txt
+1. Clone repository: `https://github.com/lgonza32/CSCI6461_Group9_Project.git`
+2. Compile project `javac -d out (Get-ChildItem src -Recurse -Filter *.java).FullName`
+3. Run packaged JAR `java -jar CSCI6461_Group9_Project`
+4. Review output and the provided part0_listing.txt
 
