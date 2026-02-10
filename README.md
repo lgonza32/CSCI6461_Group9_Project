@@ -5,7 +5,7 @@
 ## Prerequisites for Running
 - Java (JDK 1.8 or later)
 - Git
-- Any provided by windows
+- Any CLI provided by windows
 
 ## Part 0 Overview
 - Under part0_assembler
@@ -29,15 +29,16 @@ part0_assembler.jar
 ```
 
 ## How to build (Windows powershell specific)
-`javac -d out (Get-ChildItem src -Recurse -Filter *.java).FullName`
+`javac -d out (Get-ChildItem src -Recurse -Filter *.java).FullName` <br>
 Compiles all source files under `/src/` into `/out/` directory
 
 ## How to run
 Assembler is packaged as a runnable JAR
 With any Windows CLI:
-1. Navigate to location to save repo
-2. Clone repository `https://github.com/lgonza32/CSCI6461_Group9_Project.git`
-3. Run `java -jar CSCI6461_Group9_Project`
+1. Navigate to location to save repository
+2. Navigate to project root directory
+3. Clone repository `https://github.com/lgonza32/CSCI6461_Group9_Project.git` or unzip and save into directory.
+4. Run the assembler using `java -jar CSCI6461_Group9_Project`
 This executes the compiled `Main.java`, which automatically runs all tests found within the test folder.
 
 ## Test Case
