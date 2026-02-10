@@ -1,5 +1,11 @@
 # Assembly Project for CSCI 6461
 - Group 9
+- Project using Windows 11 OS
+
+## Prerequisites for Running
+- Java (JDK 1.8 or later)
+- Git
+- Any provided by windows
 
 ## Part 0 Overview
 - Under part0_assembler
@@ -28,7 +34,10 @@ Compiles all source files under `/src/` into `/out/` directory
 
 ## How to run
 Assembler is packaged as a runnable JAR
-`java -jar part0_assembler.jar`
+With any Windows CLI:
+1. Navigate to location to save repo
+2. Clone repository `[code]`
+3. Run `java -jar CSCI6461_Group9_Project`
 This executes the compiled `Main.java`, which automatically runs all tests found within the test folder.
 
 ## Test Case
