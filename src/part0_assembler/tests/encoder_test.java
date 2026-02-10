@@ -46,6 +46,7 @@ public final class encoder_test {
 
         System.out.println("Instruction:      LDR 3,0,31,1 (indirect)");
         System.out.println("Encoded (binary): " + test_ibit_binary);
+        System.out.println("Encoded (octal):  " + Integer.toOctalString(test_ibit));
         System.out.println("Field breakdown:");
         System.out.println("  opcode : " + test_ibit_opcodeBits);
         System.out.println("  r      : " + test_ibit_rBits);
