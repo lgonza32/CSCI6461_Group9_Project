@@ -63,8 +63,8 @@ ADDR     CODE     SOURCE
 - `SOURCE`: original assembly instruction
 
 ## Output Example
-When running the JAR, the program should print something like this:
-![Output](images\image.png)
+When running the JAR, the program should print something like this: <br>
+![Output](images/image.png)
 
 ## Summary
 To use:
