@@ -16,6 +16,11 @@ public final class encoder_test {
         System.out.println("Encoded (binary):  " + String.format("%16s",
                 Integer.toBinaryString(test0)).replace(' ', '0'));
 
+        // Indirect adressing test
+        List<String> ibitLDR = Arrays.asList("1", "2", "10", "1");
+        int ibitTest = enc.encodeFormat("LDR", ibitLDR);
+        System.out.println("[I-bit Test] LDR 1,2,10,1 (octal): " + Integer.toOctalString(ibitTest));
+
         // verify bad inputs are rejected
         List<String> badLDR1 = Arrays.asList("4", "0", "10");
         List<String> badLDR2 = Arrays.asList("1", "0", "32");
