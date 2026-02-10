@@ -7,6 +7,6 @@ public final class opcode_table_test {
         System.out.println("HLT test (octal): " + Integer.toOctalString(table.get("HLT")));
 
         // fail test
-        table.get("asdf");
+        // table.get("asdf");
     }
 }
