@@ -2,20 +2,28 @@ package part0_assembler;
 import java.util.HashMap;
 import java.util.Map;
 
- /* 
- This class maps assembly instruction mnemonics aligned with
- the ISA document given.
- - Opcode values given in octal.
- 
+/**
+ * This class maps assembly instruction mnemonics aligned with
+ * the ISA document given.
+ * - Opcode values given in octal.
+ * - Java supports octal integer literals by using leading 0.
+ * - This class only performs a lookup.
  */
 public final class opcode_table {
-    
+   /**
+    * Mapping:
+    * - key = instruction mnemonic (string)
+    * - value = opcode (int)
+    */
     private final Map<String, Integer> map = new HashMap<>();
-
+   /**
+    * Constructor
+    * - Populate opcode table given from ISA document
+    */
     public opcode_table() {
         // Misc instructions
-        map.put("HLT",00);
-        // map.put("TRAP",30); // for part III
+        map.put("HLT",000);
+        // map.put("TRAP",030); // for part III
 
         // Load/Store instructions
         map.put("LDR",001); // Load Register From Memory
@@ -26,9 +34,9 @@ public final class opcode_table {
 
         // Transfer instructions
         map.put("JZ",010);   // Jump If Zero
-        map.put("JNE",011);  // Jump If Not Equa
+        map.put("JNE",011);  // Jump If Not Equal
         map.put("JCC",012);  // Jump If Condition Code
-        map.put("JSR",014);  // Jump and Save Return Addres
+        map.put("JSR",014);  // Jump and Save Return Address
         map.put("RFS",015);  // Return From Subroutine
         map.put("SOB",016);  // Subtract One and Branch
         map.put("JGE",017);  // Jump Greater Than or Equal To
@@ -52,11 +60,11 @@ public final class opcode_table {
         map.put("RRC",032); // Rotate Register by Count
 
         // I/O operations
-        map.put("IN",031);  // Input Character To Register from Device
-        map.put("OUT",031); // Output Character to Device from Register
-        map.put("CHK",031); // Check Device Status to Register
+        map.put("IN",061);  // Input Character To Register from Device
+        map.put("OUT",062); // Output Character to Device from Register
+        map.put("CHK",063); // Check Device Status to Register
 
-        // FLoating Point Instructions/Vector operations (Implement in Part 4)
+        // Floating Point Instructions/Vector operations (Implement in Part 4)
         // map.put("FADD",033);  // Floating Add Memory To Register
         // map.put("FSUB",034);  // Floating Subtract Memory From Register
         // map.put("VADD",035);  // Vector Add
@@ -66,6 +74,11 @@ public final class opcode_table {
         // map.put("STFR",051);  // Store Floating Register To Memory
     }
 
+   /**
+    * Lookup for opcode by mnemonic.
+    * @param mnemonic instruction mnemonic
+    * @return opcode value
+    */
     public int get(String mnemonic) {
         Integer opcode = map.get(mnemonic.toUpperCase());
         if (opcode == null) {
