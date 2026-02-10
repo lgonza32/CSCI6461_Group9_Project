@@ -9,7 +9,7 @@ import java.util.Map;
  * - Java supports octal integer literals by using leading 0.
  * - This class only performs a lookup.
  */
-public final class Opcode_table {
+public final class opcode_table {
    /**
     * Mapping:
     * - key = instruction mnemonic (string)
@@ -20,7 +20,7 @@ public final class Opcode_table {
     * Constructor:
     * - Populate opcode table given from ISA document
     */
-    public Opcode_table() {
+    public opcode_table() {
         // Misc instructions
         map.put("HLT",000);
         // map.put("TRAP",030); // for part III

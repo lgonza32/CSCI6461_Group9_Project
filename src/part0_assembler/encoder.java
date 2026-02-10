@@ -1,5 +1,5 @@
 package part0_assembler;
-import java.util.*;
+import java.util.List;
 
 /**
  * This class is responsible for converting supported assembly instructions
@@ -18,7 +18,7 @@ import java.util.*;
 public final class Encoder {
 
     /** Opcode lookup table */
-    private final Opcode_table op_table = new Opcode_table();
+    public final opcode_table table = new opcode_table();
 
     /**
      * Pack individual instruction fields into 16-bits.
@@ -66,7 +66,7 @@ public final class Encoder {
      * @throws RuntimeException if format is out of range
      */
     public int encodeFormat(String mnemonic, List<String> args) {
-        int opcode = op_table.get(mnemonic);
+        int opcode = table.get(mnemonic);
 
         // Basic instrction format requires 3-4 operands
         if (args.size() != 3 && args.size() !=4) {
