@@ -25,7 +25,9 @@ src/
          └─ opcode_table_test.java
   Main.java  
 
-part0_assembler.jar
+CSCI6461_Group9_Project.jar
+Project 0 Group 9 Design Notes
+README.md
 ```
 
 ## How to build (Windows powershell specific)
