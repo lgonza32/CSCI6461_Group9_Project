@@ -38,7 +38,7 @@ With any Windows CLI:
 1. Navigate to location to save repository
 2. Navigate to project root directory
 3. Clone repository `https://github.com/lgonza32/CSCI6461_Group9_Project.git` or unzip and save into directory.
-4. Run the assembler using `java -jar CSCI6461_Group9_Project`
+4. Run the assembler using `java -jar CSCI6461_Group9_Project.jar`
 This executes the compiled `Main.java`, which automatically runs all tests found within the test folder.
 
 ## Test Case
@@ -71,6 +71,6 @@ When running the JAR, the program should print something like this: <br>
 To use:
 1. Clone repository: `https://github.com/lgonza32/CSCI6461_Group9_Project.git`
 2. Compile project `javac -d out (Get-ChildItem src -Recurse -Filter *.java).FullName`
-3. Run packaged JAR `java -jar CSCI6461_Group9_Project`
+3. Run packaged JAR `java -jar CSCI6461_Group9_Project.jar`
 4. Review output and the provided part0_listing.txt
 
