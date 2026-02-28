@@ -43,7 +43,7 @@ public final class GUI extends JFrame {
         // stylize GUI settings
         // label.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12)); // font
         setMinimumSize(new Dimension(900, 550));
-        setPreferredSize(new Dimension(1100, 650)); 
+        setPreferredSize(new Dimension(1280, 720)); 
         pack(); // sizes frame to preferred size
         setLocationRelativeTo(null); // center after pack
     }
@@ -79,6 +79,10 @@ public final class GUI extends JFrame {
     private JPanel buildRootPanel() {
         JPanel root = new JPanel(new BorderLayout(10, 10));
         root.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        JScrollPane leftScroll = new JScrollPane(buildLeftColumn());
+        leftScroll.setBorder(null);
+        leftScroll.getVerticalScrollBar().setUnitIncrement(16);
 
         JSplitPane split = new JSplitPane(
                 JSplitPane.HORIZONTAL_SPLIT,
@@ -540,7 +544,10 @@ public final class GUI extends JFrame {
         consoleArea.setWrapStyleWord(true);
 
         JScrollPane sp = new JScrollPane(consoleArea);
-        sp.setBorder(new TitledBorder("Console Output"));
+        sp.setBorder(new TitledBorder("Console Output (debugger)"));
+        sp.setPreferredSize(new Dimension(0, 180));
+        sp.setMinimumSize(new Dimension(0, 140));
+
         return sp;
     }
 
