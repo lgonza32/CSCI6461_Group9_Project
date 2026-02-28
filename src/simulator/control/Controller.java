@@ -1,6 +1,9 @@
 package simulator.control;
 
 import simulator.io.ProgramLoader;
+import simulator.machine.MachineState;
+import simulator.machine.Memory;
+
 import javax.swing.*;
 import java.awt.Component;
 import java.io.File;
@@ -14,6 +17,12 @@ import java.util.function.Consumer;
  *  - Handle user actions (IPL/Run/Step/Halt/Reset, Load/Store ops)
  *  - Coordinate with ProgramLoader (and later: Machine/Memory/CPU)
  *  - Report status via a log callback
+ * 
+ * Owns and performs:
+ *  - Registers
+ *  - Memory
+ *  - IPL load into memory
+ *  - Reset to clear
  */
 public final class Controller {
 
@@ -21,7 +30,11 @@ public final class Controller {
     private final Component parent;
     private final Consumer<String> log;
     private final Consumer<String> setProgramFilePath;
-    private final ProgramLoader loader;
+    private final Consumer<String> setCacheText;
+    private final Runnable refreshUI;
+    private final ProgramLoader loader = new ProgramLoader();
+    private final Memory memory = new Memory();
+    private final MachineState state = new MachineState();
 
     /**
      * Constructs the Controller.
@@ -32,12 +45,26 @@ public final class Controller {
      */
     public Controller(Component parent,
                       Consumer<String> log,
-                      Consumer<String> setProgramFilePath) {
+                      Consumer<String> setProgramFilePath,
+                      Consumer<String> setCacheText,
+                      Runnable refreshUI) {
         this.parent = parent;
         this.log = log;
         this.setProgramFilePath = setProgramFilePath;
-        this.loader = new ProgramLoader();
+        this.setCacheText = setCacheText;
+        this.refreshUI = refreshUI;
+
+        // Start “powered on” with cleared state
+        memory.clear();
+        state.clear();
     }
+
+    /* ==========================
+     * Expose model to GUI for refresh
+     * ========================== */
+
+    public MachineState getState() { return state; }
+    public Memory getMemory() { return memory; }
 
     /** ==========================
      *  Control Button Handlers
@@ -75,18 +102,40 @@ public final class Controller {
         setProgramFilePath.accept(file.getAbsolutePath());
         log.accept("[IPL] Selected program file: " + file.getAbsolutePath() + "\n");
 
+        // Clear machine before loading
+        memory.clear();
+        state.clear();
+
         // parse the file
         try {
             ProgramLoader.LoadFile parsed = loader.parse(file);
-            log.accept("[IPL] Parsed " + parsed.recordsLoaded + " word(s).\n");
-            if (parsed.firstAddress >= 0) {
-                log.accept("[IPL] First address: " + parsed.firstAddress + "\n");
+
+            // write each record into memory
+            for (ProgramLoader.Record r : parsed.records) {
+                memory.write(r.address, r.word);
             }
-            log.accept("[IPL] Write parsed words into Memory.\n");
-        } catch (IOException ex) { // IOException: file not found, permission denied, etc.
+
+            // set PC to first loaded address (good “start point”)
+            if (parsed.firstAddress >= 0) {
+                state.setPC(parsed.firstAddress);
+                state.setMAR(parsed.firstAddress); // common convenience
+            }
+
+            // show a dump of loaded words in the Cache Content text area (verification)
+            setCacheText.accept(formatLoadDump(parsed));
+
+            log.accept("[IPL] Loaded " + parsed.recordsLoaded + " word(s) into memory.\n");
+            if (parsed.firstAddress >= 0) {
+                log.accept("[IPL] PC set to " + Memory.toOct6(parsed.firstAddress) + " (octal).\n");
+            }
+
+            refreshUI.run();
+        } catch (IOException ex) {
             log.accept("[IPL] ERROR reading file: " + ex.getMessage() + "\n");
-        } catch (IllegalArgumentException ex) { // IllegalArgumentException: format/parse error in file contents.
+        } catch (IllegalArgumentException ex) {
             log.accept("[IPL] ERROR parsing file: " + ex.getMessage() + "\n");
+        } catch (RuntimeException ex) {
+            log.accept("[IPL] ERROR loading memory: " + ex.getMessage() + "\n");
         }
     }
 
@@ -128,5 +177,21 @@ public final class Controller {
 
     public void handleStorePlus() {
         log.accept("[STORE+] Requested: Store then MAR++\n");
+    }
+
+    /* ==========================
+     * Helpers
+     * ========================== */
+
+    private String formatLoadDump(ProgramLoader.LoadFile parsed) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("ADDR    WORD\n");
+        for (ProgramLoader.Record r : parsed.records) {
+            sb.append(Memory.toOct6(r.address))
+              .append("  ")
+              .append(Memory.toOct6(r.word))
+              .append("\n");
+        }
+        return sb.toString();
     }
 }
