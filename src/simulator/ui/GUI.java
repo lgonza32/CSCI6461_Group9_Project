@@ -226,6 +226,20 @@ public final class GUI extends JFrame {
         JButton halt = new JButton("Halt");
         JButton reset = new JButton("Reset");
 
+        ipl.setOpaque(true);
+        ipl.setBackground(Color.RED);
+        ipl.setForeground(Color.WHITE);
+        ipl.setFocusPainted(false);
+        ipl.setContentAreaFilled(true);
+        ipl.setBorderPainted(true);
+
+        // for debugger
+        ipl.addActionListener(e -> log("[IPL] Initial Program Load requested.\n"));
+        run.addActionListener(e -> log("[RUN] Run requested.\n"));
+        step.addActionListener(e -> log("[STEP] Single-step requested.\n"));
+        halt.addActionListener(e -> log("[HALT] Halt requested.\n"));
+        reset.addActionListener(e -> log("[RESET] Reset requested.\n"));
+
         p.add(ipl);
         p.add(run);
         p.add(step);
@@ -489,8 +503,12 @@ public final class GUI extends JFrame {
             b.setMargin(new Insets(2, 10, 2, 10));
         }
 
+        // for debugger
+        load.addActionListener(e -> log("[LOAD] Requested: MBR\n"));
+        loadPlus.addActionListener(e -> log("[LOAD+] Requested: Load then MAR++\n"));
+        store.addActionListener(e -> log("[STORE] Requested: MEM[MAR]\n"));
+        storePlus.addActionListener(e -> log("[STORE+] Requested: Store then MAR++\n"));
         
-        // load.addActionListener(e -> log("Load pressed\n")); // for console log
         p.add(load);
         p.add(Box.createVerticalStrut(6));
         p.add(loadPlus);
