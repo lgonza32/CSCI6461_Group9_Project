@@ -57,7 +57,7 @@ public final class MachineState {
     }
 
     /* =========================
-     * IXR access (1..3)
+     * IXR access
      * ========================= */
 
     public int getIXR(int x) {

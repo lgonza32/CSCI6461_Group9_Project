@@ -8,6 +8,9 @@ import javax.swing.text.BadLocationException;
 import javax.swing.text.DocumentFilter;
 import java.awt.*;
 import simulator.control.*;
+import simulator.control.Controller;
+import simulator.machine.Memory;
+import simulator.machine.MachineState;
 
 /**
  * This class represents the GUI console for the simulator (front panel).
@@ -32,7 +35,13 @@ public final class GUI extends JFrame {
 
         // Controller to handle actions
         // GUI renders + logs
-        controller = new Controller(this, this::log, programFileField::setText);
+        controller = new Controller(
+                this,
+                this::log,
+                programFileField::setText,
+                cacheArea::setText,
+                () -> refreshFromController()
+        );
         
         // builds GUI
         // setContentPane(buildRightColumn()); // test right side
@@ -525,6 +534,32 @@ public final class GUI extends JFrame {
         return p;
     }
 
+    /** ==================================
+     * SECTION FOR MEMORY IMPLMENTATION
+     * ===================================*/
+
+    /**
+     * Pull values from the controller's MachineState and display them in the GUI fields.
+     * Uses octal formatting to match course conventions.
+     */
+    private void refreshFromController() {
+        MachineState s = controller.getState();
+
+        pcField.setText(Memory.toOct6(s.getPC()));
+        marField.setText(Memory.toOct6(s.getMAR()));
+        mbrField.setText(Memory.toOct6(s.getMBR()));
+        irField.setText(Memory.toOct6(s.getIR()));
+
+        ccField.setText(Integer.toOctalString(s.getCC()));
+        mfrField.setText(Integer.toOctalString(s.getMFR()));
+
+        for (int i = 0; i < 4; i++) {
+            gprFields[i].setText(Memory.toOct6(s.getGPR(i)));
+        }
+        for (int i = 0; i < 3; i++) {
+            ixrFields[i].setText(Memory.toOct6(s.getIXR(i + 1)));
+        }
+    }
 
     /** ==================================
      * SECTION FOR UTILITIES/DEBUGGING

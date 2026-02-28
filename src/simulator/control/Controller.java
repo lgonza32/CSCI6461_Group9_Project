@@ -159,24 +159,53 @@ public final class Controller {
     }
 
     public void handleReset() {
-        log.accept("[RESET] Reset requested.\n");
-        log.accept("[RESET] Clear registers and memory.\n");
+        memory.clear();
+        state.clear();
+        setCacheText.accept("");
+        log.accept("[RESET] Cleared registers and memory.\n");
+        refreshUI.run();
     }
 
     public void handleLoad() {
-        log.accept("[LOAD] Requested: MBR <- MEM[MAR]\n");
+        int mar = state.getMAR();
+        int word = memory.read(mar);
+        state.setMBR(word);
+
+        log.accept("[LOAD] MBR <- MEM[MAR]. MAR=" + Memory.toOct6(mar) +
+                " WORD=" + Memory.toOct6(word) + "\n");
+
+        // show memory contents at MAR as required by deliverable
+        setCacheText.accept(Memory.toOct6(mar) + " " + Memory.toOct6(word) + "\n");
+
+        refreshUI.run();
     }
 
     public void handleLoadPlus() {
-        log.accept("[LOAD+] Requested: Load then MAR++\n");
+        handleLoad();
+        state.setMAR(state.getMAR() + 1);
+        log.accept("[LOAD+] MAR incremented to " + Memory.toOct6(state.getMAR()) + "\n");
+        refreshUI.run();
     }
 
     public void handleStore() {
-        log.accept("[STORE] Requested: MEM[MAR] <- MBR\n");
+        int mar = state.getMAR();
+        int word = state.getMBR();
+        memory.write(mar, word);
+
+        log.accept("[STORE] MEM[MAR] <- MBR. MAR=" + Memory.toOct6(mar) +
+                " WORD=" + Memory.toOct6(word) + "\n");
+
+        // Show memory contents at MAR
+        setCacheText.accept(Memory.toOct6(mar) + " " + Memory.toOct6(memory.read(mar)) + "\n");
+
+        refreshUI.run();
     }
 
     public void handleStorePlus() {
-        log.accept("[STORE+] Requested: Store then MAR++\n");
+        handleStore();
+        state.setMAR(state.getMAR() + 1);
+        log.accept("[STORE+] MAR incremented to " + Memory.toOct6(state.getMAR()) + "\n");
+        refreshUI.run();
     }
 
     /* ==========================
