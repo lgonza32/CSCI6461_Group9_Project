@@ -1,7 +1,5 @@
-; Part 0 Assembler Test Case
+; test.asm
 ; Purpose: Validate encoding of the basic instruction format:
-;   OP r, x, address[, I]
-; - LOC is included to show the intended load address in the listing file.
 
           LOC     6         ;BEGIN AT LOCATION 6
           Data    10        ;PUT 10 AT LOCATION 6
@@ -18,7 +16,6 @@
           LDR     1,2,10,1  ;R1 GETS 18
           LDA     0,0,0     ;R0 GETS 0 to set CONDITION CODE
           LDX     1,8       ;X1 GETS 1024
-          SETCCE  1         ;SET CONDITION CODE FOR EQUAL
-          JZ      1,0       ;JUMP TO End if CC is 1
+          JZ      0,1,0     ; jump to End if R0 == 0, using X1(=1024) + 0
           LOC     1024
 End:      HLT               ;STOP
