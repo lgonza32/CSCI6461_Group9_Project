@@ -61,7 +61,6 @@ public final class GUI extends JFrame {
         pack(); // sizes frame to preferred size
         setSize(1280, 750);
         setMinimumSize(new Dimension(1280, 750));
-        setPreferredSize(new Dimension(1280, 750)); 
         setLocationRelativeTo(null); // center after pack
     }
 
@@ -100,20 +99,25 @@ public final class GUI extends JFrame {
         JPanel root = new JPanel(new BorderLayout(10, 10));
         root.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        JScrollPane leftScroll = new JScrollPane(buildLeftColumn());
+        // Build LEFT column once
+        JPanel left = buildLeftColumn();
+
+        // Make left scrollable so Console Output can't be pushed off-screen
+        JScrollPane leftScroll = new JScrollPane(left);
         leftScroll.setBorder(null);
         leftScroll.getVerticalScrollBar().setUnitIncrement(16);
 
         JSplitPane split = new JSplitPane(
                 JSplitPane.HORIZONTAL_SPLIT,
-                buildLeftColumn(),
+                leftScroll,          // ✅ use the scroll pane
                 buildRightColumn()
         );
 
-        // keeps the right side visible and lets window resizing favor the left side
-        split.setResizeWeight(0.75);                       // 75% left, 25% right
-        split.setDividerLocation(0.75);     // initial divider position
+        split.setResizeWeight(0.75);
         split.setOneTouchExpandable(true);
+
+        // Divider location works best after the window is realized
+        SwingUtilities.invokeLater(() -> split.setDividerLocation(0.75));
 
         root.add(split, BorderLayout.CENTER);
         return root;
