@@ -7,6 +7,7 @@ import javax.swing.text.AttributeSet;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.DocumentFilter;
 import java.awt.*;
+import simulator.control.*;
 
 /**
  * This class represents the GUI console for the simulator (front panel).
@@ -16,7 +17,10 @@ import java.awt.*;
  * 
  * Responsible for graphics of the simulator.
  */
+
 public final class GUI extends JFrame {
+
+    private final Controller controller;
 
     /**
      * Constructor for GUI frame
@@ -25,6 +29,10 @@ public final class GUI extends JFrame {
         
         super("CSCI 6461 Machine Simulator"); // title
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // close on exit
+
+        // Controller to handle actions
+        // GUI renders + logs
+        controller = new Controller(this, this::log, programFileField::setText);
         
         // builds GUI
         // setContentPane(buildRightColumn()); // test right side
@@ -177,11 +185,9 @@ public final class GUI extends JFrame {
         return right;
     }
     
-    /**
-     * ==================================
+    /** ==================================
      * SECTION FOR INDIVIDUAL PANELS
-     * ==================================
-     */
+     * ================================== */
 
     /**
      * Console input panel
@@ -232,12 +238,12 @@ public final class GUI extends JFrame {
         ipl.setContentAreaFilled(true);
         ipl.setBorderPainted(true);
 
-        // for debugger
-        ipl.addActionListener(e -> log("[IPL] Initial Program Load requested.\n"));
-        run.addActionListener(e -> log("[RUN] Run requested.\n"));
-        step.addActionListener(e -> log("[STEP] Single-step requested.\n"));
-        halt.addActionListener(e -> log("[HALT] Halt requested.\n"));
-        reset.addActionListener(e -> log("[RESET] Reset requested.\n"));
+        // for debugger from controller
+        ipl.addActionListener(e -> controller.handleIPL());
+        run.addActionListener(e -> controller.handleRun());
+        step.addActionListener(e -> controller.handleStep());
+        halt.addActionListener(e -> controller.handleHalt());
+        reset.addActionListener(e -> controller.handleReset());
 
         p.add(ipl);
         p.add(run);
@@ -502,12 +508,12 @@ public final class GUI extends JFrame {
             b.setMargin(new Insets(2, 10, 2, 10));
         }
 
-        // for debugger
-        load.addActionListener(e -> log("[LOAD] Requested: MBR\n"));
-        loadPlus.addActionListener(e -> log("[LOAD+] Requested: Load then MAR++\n"));
-        store.addActionListener(e -> log("[STORE] Requested: MEM[MAR]\n"));
-        storePlus.addActionListener(e -> log("[STORE+] Requested: Store then MAR++\n"));
-        
+        // for debugger from controller
+        load.addActionListener(e -> controller.handleLoad());
+        loadPlus.addActionListener(e -> controller.handleLoadPlus());
+        store.addActionListener(e -> controller.handleStore());
+        storePlus.addActionListener(e -> controller.handleStorePlus());
+                
         p.add(load);
         p.add(Box.createVerticalStrut(6));
         p.add(loadPlus);
@@ -522,8 +528,7 @@ public final class GUI extends JFrame {
 
     /** ==================================
      * SECTION FOR UTILITIES/DEBUGGING
-     * ===================================
-    */
+     * ===================================*/
 
     /**
      * Ensures consistent style for register display fields.
