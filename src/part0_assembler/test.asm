@@ -1,3 +1,8 @@
+; Part 0 Assembler Test Case
+; Purpose: Validate encoding of the basic instruction format:
+;   OP r, x, address[, I]
+; - LOC is included to show the intended load address in the listing file.
+
           LOC     6         ;BEGIN AT LOCATION 6
           Data    10        ;PUT 10 AT LOCATION 6
           Data    3         ;PUT 3 AT LOCATION 7
