@@ -58,9 +58,10 @@ public final class GUI extends JFrame {
 
         // stylize GUI settings
         // label.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12)); // font
-        setMinimumSize(new Dimension(900, 550));
-        setPreferredSize(new Dimension(1280, 720)); 
         pack(); // sizes frame to preferred size
+        setSize(1280, 750);
+        setMinimumSize(new Dimension(1280, 750));
+        setPreferredSize(new Dimension(1280, 750)); 
         setLocationRelativeTo(null); // center after pack
     }
 
@@ -82,6 +83,9 @@ public final class GUI extends JFrame {
     private final JTextField mfrField = new JTextField("0", 6);
     private final JTextField octalInputField = new JTextField("0", 8);
     private final JTextField binaryInputField = new JTextField("0000000000000000", 16);
+    // Target selector for writing values into registers from Binary/Octal inputs
+    private final JComboBox<String> setTargetCombo =
+            new JComboBox<>(new String[]{"PC","MAR","MBR","R0","R1","R2","R3","X1","X2","X3"});
 
     /**
      * Builds the overall root layout for the simulator.
@@ -198,6 +202,40 @@ public final class GUI extends JFrame {
      * SECTION FOR INDIVIDUAL PANELS
      * ================================== */
 
+    /**
+     * Panel that lets the operator choose a target register and write a value into it
+     * using the Binary/Octal inputs (auto-detected in Controller).
+     */
+    private JPanel buildSetTargetPanel() {
+        JPanel p = new JPanel(new GridBagLayout());
+        p.setBorder(new TitledBorder("Set"));
+
+        GridBagConstraints c = new GridBagConstraints();
+        c.insets = new Insets(4, 6, 4, 6);
+        c.fill = GridBagConstraints.HORIZONTAL;
+
+        c.gridx = 0; c.gridy = 0; c.weightx = 0;
+        p.add(new JLabel("Target:"), c);
+
+        c.gridx = 1; c.gridy = 0; c.weightx = 1;
+        p.add(setTargetCombo, c);
+
+        JButton setBtn = new JButton("Set");
+        setBtn.addActionListener(e -> {
+            String target = (String) setTargetCombo.getSelectedItem();
+            try {
+                controller.handleSetTarget(target, binaryInputField.getText(), octalInputField.getText());
+            } catch (Exception ex) {
+                log("[SET] ERROR: " + ex.getMessage() + "\n");
+            }
+        });
+
+        c.gridx = 0; c.gridy = 1; c.gridwidth = 2; c.weightx = 1;
+        p.add(setBtn, c);
+
+        return p;
+    }
+    
     /**
      * Console input panel
      * @return input panel
@@ -447,6 +485,7 @@ public final class GUI extends JFrame {
         JPanel outer = new JPanel(new GridBagLayout());
         outer.setBorder(new TitledBorder("Binary / Octal Input"));
 
+        // gridbas section
         GridBagConstraints c = new GridBagConstraints();
         c.insets = new Insets(4, 6, 4, 6);
         c.fill = GridBagConstraints.BOTH;
@@ -477,16 +516,20 @@ public final class GUI extends JFrame {
         c.weighty = 0;
         outer.add(inputs, c);
 
+        // opswrapper section
         JPanel opsWrapper = new JPanel(new BorderLayout());
-        opsWrapper.add(buildMemoryOpsPanel(), BorderLayout.NORTH);
-        opsWrapper.setPreferredSize(new Dimension(160, 160));
-        opsWrapper.setMinimumSize(new Dimension(160, 160));
+        opsWrapper.setLayout(new BoxLayout(opsWrapper, BoxLayout.Y_AXIS));
+        opsWrapper.add(buildMemoryOpsPanel());
+        opsWrapper.add(Box.createVerticalStrut(8));
+        opsWrapper.add(buildSetTargetPanel()); // set target panel below
+        opsWrapper.setPreferredSize(new Dimension(180, 260));
+        opsWrapper.setMinimumSize(new Dimension(180, 260));
 
-        // memory ops
+        // ops wrapper (memory ops + Set target)
         c.gridx = 1;
         c.weightx = 0;
         c.anchor = GridBagConstraints.NORTH;
-        outer.add(buildMemoryOpsPanel(), c);
+        outer.add(opsWrapper, c);
 
         return outer;
     }

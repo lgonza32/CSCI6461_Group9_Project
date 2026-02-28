@@ -138,6 +138,95 @@ public final class Controller {
             log.accept("[IPL] ERROR loading memory: " + ex.getMessage() + "\n");
         }
     }
+    
+    /**
+     * Sets a selected register from the operator "switch" inputs.
+     *
+     * Auto-detect rule (binary vs octal):
+     *  - If octal field is empty -> use binary
+     *  - Else if binary contains at least one '1' -> use binary
+     *  - Else use octal
+     *
+     * This avoids ambiguity when binary default is all zeros.
+     */
+    public void handleSetTarget(String target, String binaryText, String octalText) {
+        int value = parseSwitchValue(binaryText, octalText);
+
+        switch (target) {
+            case "PC" -> {
+                // PC is 12-bit; also enforce 0..2047 for clarity
+                if (value < 0 || value >= Memory.SIZE) {
+                    log.accept("[SET] PC out of range (0..2047): " + value + "\n");
+                    return;
+                }
+                state.setPC(value);
+                log.accept("[SET] PC <- " + Memory.toOct6(state.getPC()) + "\n");
+            }
+            case "MAR" -> {
+                if (value < 0 || value >= Memory.SIZE) {
+                    log.accept("[SET] MAR out of range (0..2047): " + value + "\n");
+                    return;
+                }
+                state.setMAR(value);
+                log.accept("[SET] MAR <- " + Memory.toOct6(state.getMAR()) + "\n");
+
+                // show memory at MAR on console area
+                int word = memory.read(state.getMAR());
+                setCacheText.accept(Memory.toOct6(state.getMAR()) + " " + Memory.toOct6(word) + "\n");
+            }
+            case "MBR" -> {
+                state.setMBR(value);
+                log.accept("[SET] MBR <- " + Memory.toOct6(state.getMBR()) + "\n");
+            }
+            case "R0", "R1", "R2", "R3" -> {
+                int r = Integer.parseInt(target.substring(1));
+                state.setGPR(r, value);
+                log.accept("[SET] " + target + " <- " + Memory.toOct6(state.getGPR(r)) + "\n");
+            }
+            case "X1", "X2", "X3" -> {
+                int x = Integer.parseInt(target.substring(1));
+                state.setIXR(x, value);
+                log.accept("[SET] " + target + " <- " + Memory.toOct6(state.getIXR(x)) + "\n");
+            }
+            default -> {
+                log.accept("[SET] Unknown target: " + target + "\n");
+                return;
+            }
+        }
+
+        refreshUI.run();
+    }
+
+    /**
+     * Parses operator input using the auto-detect rule described above.
+     * Returns an int (0..65535 typically); masking happens inside MachineState setters.
+     */
+    private int parseSwitchValue(String binaryText, String octalText) {
+        String bin = (binaryText == null) ? "" : binaryText.trim();
+        String oct = (octalText == null) ? "" : octalText.trim();
+
+        // decide which to use
+        boolean octEmpty = oct.isEmpty();
+        boolean binHasOne = bin.contains("1");
+        boolean useBinary = octEmpty || binHasOne;
+
+        if (useBinary) {
+            if (bin.isEmpty()) bin = "0";
+            // binary should be only 0/1; GUI filter enforces this, but validate anyway
+            if (!bin.matches("[01]+")) {
+                throw new IllegalArgumentException("Binary input invalid: " + bin);
+            }
+            log.accept("[SWITCH] Using BINARY input.\n");
+            return Integer.parseInt(bin, 2);
+        } else {
+            if (oct.isEmpty()) oct = "0";
+            if (!oct.matches("[0-7]+")) {
+                throw new IllegalArgumentException("Octal input invalid: " + oct);
+            }
+            log.accept("[SWITCH] Using OCTAL input.\n");
+            return Integer.parseInt(oct, 8);
+        }
+    }
 
    /** ==========================
      *  HANDLER LOGS
