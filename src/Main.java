@@ -1,5 +1,7 @@
 import part0_assembler.tests.opcode_table_test;
 import part0_assembler.tests.encoder_test;
+import simulator.ui.*;
+import javax.swing.SwingUtilities;
 
 /**
  * Single entry point for Part 0 JAR.
@@ -7,9 +9,15 @@ import part0_assembler.tests.encoder_test;
  */
 public class Main {
     public static void main(String[] args) throws Exception {
-        System.out.println("PART 0");
-        opcode_table_test.main(args);
-        System.out.println();
-        encoder_test.main(args);
+        // System.out.println("PART 0");
+        // opcode_table_test.main(args);
+        // System.out.println();
+        // encoder_test.main(args);
+
+        // launch swing UI for GUI
+        SwingUtilities.invokeLater(() -> {
+            GUI frame = new GUI();
+            frame.setVisible(true);
+        });
     }
 }

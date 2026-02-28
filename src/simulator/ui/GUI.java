@@ -4,14 +4,19 @@ import javax.swing.*;
 import java.awt.*;
 
 /**
- * This class represents the GUI console for the simulator (front panel)
+ * This class represents the GUI console for the simulator (front panel).
+ * Implemented libraries:
+ *  - Java Swing
+ *  - Java AWT
+ * 
+ * Responsible for graphics of the simulator.
  */
-public final class ConsoleFrame extends JFrame {
+public final class GUI extends JFrame {
 
     /**
      * Constructor for GUI frame
      */
-    public ConsoleFrame() {
+    public GUI() {
         
         super("Window title"); // title
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // close on exit
