@@ -3,12 +3,12 @@ package simulator.control;
 import simulator.io.ProgramLoader;
 import simulator.machine.MachineState;
 import simulator.machine.Memory;
-
 import javax.swing.*;
 import java.awt.Component;
 import java.io.File;
 import java.io.IOException;
 import java.util.function.Consumer;
+import simulator.cpu.CPU;
 
 /**
  * Controller for the CSCI 6461 simulator.
@@ -35,6 +35,7 @@ public final class Controller {
     private final ProgramLoader loader = new ProgramLoader();
     private final Memory memory = new Memory();
     private final MachineState state = new MachineState();
+    private final CPU cpu = new CPU(memory, state);
 
     /**
      * Constructs the Controller.
@@ -127,6 +128,17 @@ public final class Controller {
             log.accept("[IPL] Loaded " + parsed.recordsLoaded + " word(s) into memory.\n");
             if (parsed.firstAddress >= 0) {
                 log.accept("[IPL] PC set to " + Memory.toOct6(parsed.firstAddress) + " (octal).\n");
+            }
+
+            Integer start = tryFindStartAddressFromListing(file);
+            if (start != null) {
+                state.setPC(start);
+                state.setMAR(start);
+                log.accept("[IPL] Start address from listing: PC <- " + Memory.toOct6(start) + "\n");
+            } else if (parsed.firstAddress >= 0) {
+                state.setPC(parsed.firstAddress);
+                state.setMAR(parsed.firstAddress);
+                log.accept("[IPL] Start address fallback: PC <- " + Memory.toOct6(parsed.firstAddress) + "\n");
             }
 
             refreshUI.run();
@@ -238,8 +250,15 @@ public final class Controller {
     }
 
     public void handleStep() {
-        log.accept("[STEP] Single-step requested.\n");
-        log.accept("[STEP] Execute exactly one instruction.\n");
+        String msg = cpu.step();
+        log.accept(msg);
+
+        // show memory contents at MAR on the user console
+        int mar = state.getMAR();
+        int word = memory.read(mar);
+        setCacheText.accept(Memory.toOct6(mar) + " " + Memory.toOct6(word) + "\n");
+
+    refreshUI.run();
     }
 
     public void handleHalt() {
@@ -253,6 +272,7 @@ public final class Controller {
         setCacheText.accept("");
         log.accept("[RESET] Cleared registers and memory.\n");
         refreshUI.run();
+        cpu.reset();
     }
 
     public void handleLoad() {
@@ -311,5 +331,53 @@ public final class Controller {
               .append("\n");
         }
         return sb.toString();
+    }
+
+    /**
+     * Attempts to locate the matching listing file and extract the first instruction address.
+     *
+     * Convention:
+     *  - If user selects:  txt/test_load.txt
+     *  - We look for:      txt/test_listing.txt
+     *
+     * We scan listing lines and find the first line that has:
+     *  - two octal columns (LOC and WORD), AND
+     *  - source token is NOT "Data" and NOT "LOC"
+     *
+     * That gives the first instruction location (e.g., 000016).
+     */
+    private Integer tryFindStartAddressFromListing(File loadFile) {
+        String name = loadFile.getName();
+        String listingName = name.replace("_load", "_listing");
+        File listing = new File(loadFile.getParentFile(), listingName);
+
+        if (!listing.exists()) return null;
+
+        try (java.io.BufferedReader br = new java.io.BufferedReader(new java.io.FileReader(listing))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                String t = line.trim();
+                if (t.isEmpty() || t.startsWith(";")) continue;
+
+                String[] parts = t.split("\\s+");
+                if (parts.length < 3) continue;
+
+                // Listing format: LOC WORD <source...>
+                if (!parts[0].matches("[0-7]{6}") || !parts[1].matches("[0-7]{6}")) {
+                    continue;
+                }
+
+                String sourceToken = parts[2];
+                if (sourceToken.equalsIgnoreCase("Data") || sourceToken.equalsIgnoreCase("LOC")) {
+                    continue; // skip data/directives
+                }
+
+                // first instruction line found
+                return Integer.parseInt(parts[0], 8);
+            }
+        } catch (Exception e) {
+            log.accept("[IPL] Warning: couldn't parse listing for start address.\n");
+        }
+        return null;
     }
 }
