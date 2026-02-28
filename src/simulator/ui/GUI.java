@@ -408,13 +408,8 @@ public final class GUI extends JFrame {
     }
 
     /**
-     * Builds the Binary + Octal input panel.
+     * Builds the Binary + Octal input and memory ops panel.
      *
-     * Reference GUI expects a binary input area and an octal input area.
-     *
-     * Input conventions:
-     *  - binaryInputField: 16-bit string
-     *  - octalInputField: octal number (e.g., 12)
      */
     private JPanel buildSwitchInputPanel() {
         JPanel outer = new JPanel(new GridBagLayout());
@@ -422,35 +417,85 @@ public final class GUI extends JFrame {
 
         GridBagConstraints c = new GridBagConstraints();
         c.insets = new Insets(4, 6, 4, 6);
-        c.fill = GridBagConstraints.HORIZONTAL;
-
-        // ---- Binary row ----
-        c.gridx = 0;
+        c.fill = GridBagConstraints.BOTH;
         c.gridy = 0;
-        c.weightx = 0;
-        outer.add(new JLabel("BINARY:"), c);
 
-        binaryInputField.setHorizontalAlignment(SwingConstants.LEFT);
+        // inputs
+        JPanel inputs = new JPanel(new GridBagLayout());
+        GridBagConstraints in = new GridBagConstraints();
+        in.insets = new Insets(4, 6, 4, 6);
+        in.fill = GridBagConstraints.HORIZONTAL;
 
-        c.gridx = 1;
-        c.gridy = 0;
-        c.weightx = 1;
-        outer.add(binaryInputField, c);
+        // binary row
+        in.gridx = 0; in.gridy = 0; in.weightx = 0;
+        inputs.add(new JLabel("BINARY:"), in);
 
-        // ---- Octal row ----
+        in.gridx = 1; in.gridy = 0; in.weightx = 1;
+        inputs.add(binaryInputField, in);
+
+        // octal row
+        in.gridx = 0; in.gridy = 1; in.weightx = 0;
+        inputs.add(new JLabel("OCTAL INPUT:"), in);
+
+        in.gridx = 1; in.gridy = 1; in.weightx = 1;
+        inputs.add(octalInputField, in);
+
         c.gridx = 0;
-        c.gridy = 1;
-        c.weightx = 0;
-        outer.add(new JLabel("OCTAL INPUT:"), c);
-
-        octalInputField.setHorizontalAlignment(SwingConstants.RIGHT);
-
-        c.gridx = 1;
-        c.gridy = 1;
         c.weightx = 1;
-        outer.add(octalInputField, c);
+        c.weighty = 0;
+        outer.add(inputs, c);
+
+        JPanel opsWrapper = new JPanel(new BorderLayout());
+        opsWrapper.add(buildMemoryOpsPanel(), BorderLayout.NORTH);
+        opsWrapper.setPreferredSize(new Dimension(160, 160));
+        opsWrapper.setMinimumSize(new Dimension(160, 160));
+
+        // memory ops
+        c.gridx = 1;
+        c.weightx = 0;
+        c.anchor = GridBagConstraints.NORTH;
+        outer.add(buildMemoryOpsPanel(), c);
 
         return outer;
+    }
+
+    /**
+     * Memory operations panel
+     * 
+     * @return memory ops panel
+     */
+    private JPanel buildMemoryOpsPanel() {
+        JPanel p = new JPanel();
+        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
+        p.setBorder(new TitledBorder("Memory Ops"));
+
+        JButton load = new JButton("Load");
+        JButton loadPlus = new JButton("Load+");
+        JButton store = new JButton("Store");
+        JButton storePlus = new JButton("Store+");
+
+        Dimension btnSize = new Dimension(120, 28);
+
+        // for button alignment
+        for (JButton b : new JButton[] {load, loadPlus, store, storePlus}) {
+            b.setAlignmentX(Component.CENTER_ALIGNMENT);
+            b.setPreferredSize(btnSize);
+            b.setMinimumSize(btnSize);
+            b.setMaximumSize(new Dimension(140, 28));
+            b.setMargin(new Insets(2, 10, 2, 10));
+        }
+
+        
+        // load.addActionListener(e -> log("Load pressed\n")); // for console log
+        p.add(load);
+        p.add(Box.createVerticalStrut(6));
+        p.add(loadPlus);
+        p.add(Box.createVerticalStrut(6));
+        p.add(store);
+        p.add(Box.createVerticalStrut(6));
+        p.add(storePlus);
+
+        return p;
     }
 
 
@@ -500,6 +545,14 @@ public final class GUI extends JFrame {
     }
 
     /**
+     * Appends a message to the Console Output area and auto-scrolls.
+     */
+    private void log(String msg) {
+        consoleArea.append(msg);
+        consoleArea.setCaretPosition(consoleArea.getDocument().getLength());
+    }
+
+    /**
      * Restricts a JTextField to accept only '0' and '1' characters,
      * and limits total length to maxBits.
      *
@@ -521,13 +574,13 @@ public final class GUI extends JFrame {
                     throws BadLocationException {
                 if (text == null) return;
 
-                // Only allow 0/1 characters
+                // only allow 0/1 characters
                 if (!text.matches("[01]*")) {
                     Toolkit.getDefaultToolkit().beep();
                     return;
                 }
 
-                // Enforce max length
+                // enforce max length
                 int currentLen = fb.getDocument().getLength();
                 int newLen = currentLen - length + text.length();
                 if (newLen > maxBits) {
