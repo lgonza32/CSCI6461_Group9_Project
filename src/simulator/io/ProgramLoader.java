@@ -18,7 +18,9 @@ import java.util.List;
  */
 public final class ProgramLoader {
 
-    /** One parsed record: write "word" into memory at "address". */
+    /**
+     *  One parsed record: write "word" into memory at "address". 
+     */
     public static final class Record {
         public final int address;
         public final int word;
@@ -29,7 +31,9 @@ public final class ProgramLoader {
         }
     }
 
-    /** Parsed file summary + records. */
+    /** 
+     * Parsed file summary + records. 
+     */
     public static final class LoadFile {
         public final List<Record> records;
         public final int recordsLoaded;
@@ -62,15 +66,15 @@ public final class ProgramLoader {
                 lineNo++;
                 String trimmed = line.trim();
 
-                // Skip blanks
+                // skip blanks
                 if (trimmed.isEmpty()) continue;
 
-                // Skip comments
+                // skip comments
                 if (trimmed.startsWith("#") || trimmed.startsWith("//") || trimmed.startsWith(";")) {
                     continue;
                 }
 
-                // Split by whitespace (address and word)
+                // split by whitespace (address and word)
                 String[] parts = trimmed.split("\\s+");
                 if (parts.length < 2) {
                     throw new IllegalArgumentException("Line " + lineNo + " missing fields: " + trimmed);
