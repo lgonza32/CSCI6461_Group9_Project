@@ -2,6 +2,10 @@ package simulator.ui;
 
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
+import javax.swing.text.AbstractDocument;
+import javax.swing.text.AttributeSet;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.DocumentFilter;
 
 import java.awt.*;
 
@@ -32,6 +36,9 @@ public final class GUI extends JFrame {
         // setContentPane(buildLeftColumn()); // test left side
         setContentPane(buildRootPanel());
 
+        // only input binary
+        applyBinaryFilter(binaryInputField, 16);
+
 
         // stylize GUI settings
         // label.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12)); // font
@@ -57,8 +64,8 @@ public final class GUI extends JFrame {
     private final JTextField irField  = new JTextField("0", 10);
     private final JTextField ccField  = new JTextField("0", 6);
     private final JTextField mfrField = new JTextField("0", 6);
-    private final JToggleButton[] switchBits = new JToggleButton[16]; // 16-bit switch register
     private final JTextField octalInputField = new JTextField("0", 8);
+    private final JTextField binaryInputField = new JTextField("0000000000000000", 16);
 
     /**
      * Builds the overall root layout for the simulator.
@@ -107,22 +114,25 @@ public final class GUI extends JFrame {
         c.weighty = 0;
         left.add(buildRegistersPanel(), c);
 
-        // Controls
+        // binary/Octal Input (switch register)
         c.gridy = 1;
+        c.weighty = 0;
+        left.add(buildSwitchInputPanel(), c);
+
+        // controls
+        c.gridy = 2;
+        c.weighty = 0;
         left.add(buildControlsPanel(), c);
 
         // program file path
-        c.gridy = 2;
+        c.gridy = 3;
+        c.weighty = 0;
         left.add(buildProgramFilePanel(), c);
 
         // console output
-        c.gridy = 3;
+        c.gridy = 4;
         c.weighty = 1;
         left.add(buildConsoleOutputPanel(), c);
-
-        // switch registers
-        c.gridy = 1;
-        left.add(buildSwitchInputPanel(), c);
 
         return left;
     }
@@ -400,11 +410,11 @@ public final class GUI extends JFrame {
     /**
      * Builds the Binary + Octal input panel.
      *
-     * This simulates the physical "switch register" from the reference GUI.
-     * - 16 toggle bits represent a 16-bit switch register value.
-     * - Octal input is a convenient way to enter values for MAR/PC/MBR operations later.
-     * 
-     * @return switch input panel
+     * Reference GUI expects a binary input area and an octal input area.
+     *
+     * Input conventions:
+     *  - binaryInputField: 16-bit string
+     *  - octalInputField: octal number (e.g., 12)
      */
     private JPanel buildSwitchInputPanel() {
         JPanel outer = new JPanel(new GridBagLayout());
@@ -413,47 +423,30 @@ public final class GUI extends JFrame {
         GridBagConstraints c = new GridBagConstraints();
         c.insets = new Insets(4, 6, 4, 6);
         c.fill = GridBagConstraints.HORIZONTAL;
-        c.weightx = 1;
 
-        // binary label
+        // ---- Binary row ----
         c.gridx = 0;
         c.gridy = 0;
-        c.gridwidth = 2;
-        outer.add(new JLabel("BINARY (16-bit switch register)"), c);
+        c.weightx = 0;
+        outer.add(new JLabel("BINARY:"), c);
 
-        // binary switches row 
-        JPanel bitRow = new JPanel(new GridLayout(1, 16, 3, 3));
-        for (int i = 0; i < 16; i++) {
-            // MSB on the left (bit 15)
-            int bitIndex = 15 - i;
-            switchBits[bitIndex] = new JToggleButton("0");
-            switchBits[bitIndex].setMargin(new Insets(2, 2, 2, 2));
+        binaryInputField.setHorizontalAlignment(SwingConstants.LEFT);
 
-            // when clicked, update button label to 0/1
-            switchBits[bitIndex].addActionListener(e -> {
-                JToggleButton b = (JToggleButton) e.getSource();
-                b.setText(b.isSelected() ? "1" : "0");
-            });
+        c.gridx = 1;
+        c.gridy = 0;
+        c.weightx = 1;
+        outer.add(binaryInputField, c);
 
-            bitRow.add(switchBits[bitIndex]);
-        }
-
+        // ---- Octal row ----
         c.gridx = 0;
         c.gridy = 1;
-        c.gridwidth = 2;
-        outer.add(bitRow, c);
-
-        // octal input label
-        c.gridx = 0;
-        c.gridy = 2;
-        c.gridwidth = 1;
         c.weightx = 0;
         outer.add(new JLabel("OCTAL INPUT:"), c);
 
-        // octal input field
         octalInputField.setHorizontalAlignment(SwingConstants.RIGHT);
+
         c.gridx = 1;
-        c.gridy = 2;
+        c.gridy = 1;
         c.weightx = 1;
         outer.add(octalInputField, c);
 
@@ -504,5 +497,46 @@ public final class GUI extends JFrame {
         JScrollPane sp = new JScrollPane(consoleArea);
         sp.setBorder(new TitledBorder("Console Output"));
         return sp;
+    }
+
+    /**
+     * Restricts a JTextField to accept only '0' and '1' characters,
+     * and limits total length to maxBits.
+     *
+     * Used for the 16-bit switch register binary input.
+     */
+    private void applyBinaryFilter(JTextField field, int maxBits) {
+        AbstractDocument doc = (AbstractDocument) field.getDocument();
+        doc.setDocumentFilter(new DocumentFilter() {
+
+            @Override
+            public void insertString(FilterBypass fb, int offset, String string, AttributeSet attr)
+                    throws BadLocationException {
+                if (string == null) return;
+                replace(fb, offset, 0, string, attr);
+            }
+
+            @Override
+            public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs)
+                    throws BadLocationException {
+                if (text == null) return;
+
+                // Only allow 0/1 characters
+                if (!text.matches("[01]*")) {
+                    Toolkit.getDefaultToolkit().beep();
+                    return;
+                }
+
+                // Enforce max length
+                int currentLen = fb.getDocument().getLength();
+                int newLen = currentLen - length + text.length();
+                if (newLen > maxBits) {
+                    Toolkit.getDefaultToolkit().beep();
+                    return;
+                }
+
+                super.replace(fb, offset, length, text, attrs);
+            }
+        });
     }
 }
