@@ -88,24 +88,32 @@ public final class ProgramLoader {
     }
 
     /**
-     * Parses an integer token as:
-     *  - hex if starts with 0x/0X
-     *  - octal if token contains only [0-7] AND has a leading 0 (common for assembler outputs)
-     *  - otherwise decimal
+     * Parse numbers from the LOAD FILE.
+     *
+     * IMPORTANT:
+     *  - Load file columns (LOC and WORD) are in octal in this project.
+     *  - i.e. tokens like "102207" must be interpreted as octal,
+     *    even though they do not start with '0'.
+     *
+     * Supported:
+     *  - 0x... hex
+     *  - [0-7]+ octal
+     *  - decimal fallback
      */
     private int parseNumber(String token) {
         String t = token.trim();
 
+        // hex support
         if (t.startsWith("0x") || t.startsWith("0X")) {
             return Integer.parseInt(t.substring(2), 16);
         }
 
-        // octal if it’s only 0-7 digits (covers words like 102207)
+        // octal default for load file
         if (t.matches("[0-7]+")) {
             return Integer.parseInt(t, 8);
         }
 
-        // decimal fallback
+        // fallback -> decimal 
         return Integer.parseInt(t, 10);
     }
 }
