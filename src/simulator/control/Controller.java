@@ -18,7 +18,7 @@ import simulator.cpu.CPU;
  *  - Coordinate with ProgramLoader (and later: Machine/Memory/CPU)
  *  - Report status via a log callback
  * 
- * Owns and performs:
+ * Performs:
  *  - Registers
  *  - Memory
  *  - IPL load into memory
