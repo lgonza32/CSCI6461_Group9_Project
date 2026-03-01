@@ -67,8 +67,8 @@ With any Windows CLI:
 1. Navigate to location to save repository
 2. Navigate to project root directory
 3. Clone repository `https://github.com/lgonza32/CSCI6461_Group9_Project.git` or unzip and save into directory.
-4. Run the assembler using `java -jar CSCI6461_Group9_Project.jar` \
-This executes the compiled `Main.java`, which automatically opens/runs GUI.
+4. Run the assembler using `java -jar CSCI6461_Group9_Project.jar`
+<br>\ This executes the compiled `Main.java`, which automatically opens/runs GUI.
 
 ## Load File Format
 Within /txt/test_load.txt and /txt/test_listing.txt produced by test.asm through assembler.
@@ -92,21 +92,21 @@ Registers displays:
 - GPR: R0–R3
 - IXR: X1–X3
 - Special Reg: PC, MAR, MBR, IR, CC, MFR \
-Binary/Octal Input:
+<br> Binary/Octal Input:
 - Binary field: accepts only 0/1 and is limited to 16 bits
 - Octal field: accepts octal digits (0–7)
 - Used by the Set Target panel and manual deposit/examine workflows.
 - Values are displayed in octal (6 digits for 16-bit style display) \
-Set Target Register:
+<br> Set Target Register:
 - Use dropdown target: PC, MAR, MBR, R0-R3, X1-X3
 - Press Set to write the value to the selected target \
-Memory Ops:
+<br> Memory Ops:
 - Load: MBR <- MEM[MAR]
 - Load+: Load then MAR++
 - Store: MEM[MAR] <- MBR
 - Store+: Store then MAR++
 - Cache Content panel shows the memory line at MAR (or a dump after IPL) \
-Controls:
+<br> Controls:
 - IPL (red): choose a *_load.txt file and load into memory
 - Single Step: executes one instruction cycle (fetch/decode/execute)
 - Reset: clears registers + memory
@@ -118,21 +118,21 @@ Enter a value into a register (R0-R3):
 - Target dropdown → R0
 - Click Set
 - Verify R0 updates in the register display \
-Deposit a word into memory via "switches":
+<br> Deposit a word into memory via "switches":
 - Target → MAR, set address (e.g., octal 7), click Set
 - Target → MBR, set data (e.g., octal 777), click Set
 - Click Store
 - Click Load to verify the value returns into MBR \
-Set PC and single step:
+<br> Set PC and single step:
 - Target → PC, enter address, click Set
 - Click Single Step
 - Observe IR update and any opcode effects \
-IPL:
+<br> IPL:
 - Click IPL and select /txt/test_load.txt (provided)
 - PC will automatically move to program start (e.g., 000016) based on listing
 - Click Single Step repeatedly to observe:
 - LDX, LDR, LDA, JZ, and final HLT
-- When halted, the console logs that CPU is halted and ignores further steps \
+- When halted, the console logs that CPU is halted and ignores further steps
 
 ## Summary
 To use:
