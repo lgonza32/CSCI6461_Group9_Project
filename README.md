@@ -14,8 +14,10 @@
 ```
 CSCI6461_GROUP9_PROJECT/
 ├─ .vscode/
-├─ design_notes/
-├─ images/
+├─ docs/
+│  ├─ design_notes
+│  ├─ images/
+│  ├─ part1_test cases/
 ├─ lib/
 ├─ out/
 ├─ src/
