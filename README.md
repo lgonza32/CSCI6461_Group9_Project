@@ -114,7 +114,7 @@ Registers displays:
 - Reset: clears registers + memory
 - Run / Halt: may be stubbed
 
-## Test Run Examples
+## Test Run Examples (Also within the /docs/part1_test cases folder)
 Enter a value into a register (R0-R3):
 - Type value in Octal (e.g., 12) or Binary (e.g., 0000000000001010)
 - Target dropdown → R0
