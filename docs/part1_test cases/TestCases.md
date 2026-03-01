@@ -48,7 +48,7 @@ These test cases validate the Part 1 deliverables:
 - Console Output shows:
   - `[SWITCH] Using OCTAL input.`
   - `[SET] R0 <- 000012`
-![Output](../images/testcases/p1_TC2.png)
+![Output](..\images\testcases\p1_TC2.png)
 ---
 
 ## Test Case 3 — Set MBR using Binary input (binary override)
