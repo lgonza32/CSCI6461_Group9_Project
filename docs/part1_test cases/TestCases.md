@@ -48,7 +48,7 @@ These test cases validate the Part 1 deliverables:
 - Console Output shows:
   - `[SWITCH] Using OCTAL input.`
   - `[SET] R0 <- 000012`
-![Output](docs\images\testcases\p1_TC2.png)
+![Output](../images/testcases/p1_TC2.png)
 ---
 
 ## Test Case 3 — Set MBR using Binary input (binary override)
@@ -66,7 +66,7 @@ These test cases validate the Part 1 deliverables:
 - Console Output shows:
   - `[SWITCH] Using BINARY input.`
   - `[SET] MBR <- 000012`
-![Output](docs\images\testcases\p1_TC3.png)
+![Output](..\images\testcases\p1_TC3.png)
 ---
 
 ## Test Case 4 — Deposit a value into memory via switches (Store)
@@ -89,7 +89,7 @@ These test cases validate the Part 1 deliverables:
 - After Store, Cache Content shows `000007 000777` (or displays mem at MAR containing 000777).
 - Load sets MBR to `000777`.
 - Console Output logs both Store and Load with MAR/WORD shown.
-![Output](docs\images\testcases\p1_TC4.png)
+![Output](..\images\testcases\p1_TC4.png)
 ---
 
 ## Test Case 5 — Load+ increments MAR after loading
@@ -107,7 +107,7 @@ These test cases validate the Part 1 deliverables:
 - MBR becomes the word stored at `MEM[000006]`.
 - MAR increments to `000007`.
 - Console Output indicates both the load operation and MAR increment.
-![Output](docs\images\testcases\p1_TC5.png)
+![Output](..\images\testcases\p1_TC5.png)
 ---
 
 ## Test Case 6 — Store+ increments MAR after storing
@@ -130,7 +130,7 @@ These test cases validate the Part 1 deliverables:
 - MAR increments to `000011`.
 - Cache Content shows the stored value at the MAR location (before or after increment depending on implementation).
 - Console Output logs store + MAR increment.
-![Output](docs\images\testcases\p1_TC6.png)
+![Output](..\images\testcases\p1_TC6.png)
 ---
 
 ## Test Case 7 — IPL loads program and sets PC to first instruction
@@ -150,7 +150,7 @@ These test cases validate the Part 1 deliverables:
 - PC display becomes `000016` (octal).
 - MAR is set to the same start address (if implemented that way).
 - Cache Content shows a dump of loaded records or at least shows memory contents at MAR.
-![Output](docs\images\testcases\p1_TC7.png)
+![Output](..\images\testcases\p1_TC7.png)
 ---
 
 ## Test Case 8 — Single Step executes through demo program and halts
@@ -165,7 +165,7 @@ These test cases validate the Part 1 deliverables:
 - At the jump, console logs something like `JZ taken -> PC <- 002000`.
 - At end, console logs `(HLT)` and CPU halts.
 - Further Single Step presses log: `CPU is halted; ignoring step.`
-![Output](docs\images\testcases\p1_TC8.png)
+![Output](..\images\testcases\p1_TC8.png)
 ---
 
 ## Test Case 9 — PC can be manually set and Single Step fetches/executes from that location
@@ -182,4 +182,4 @@ These test cases validate the Part 1 deliverables:
 - PC becomes `000016` before stepping.
 - After stepping, PC increments and IR reflects the instruction at `000016`.
 - Console Output logs the executed instruction.
-![Output](docs\images\testcases\p1_TC9.png)
+![Output](..\images\testcases\p1_TC9.png)

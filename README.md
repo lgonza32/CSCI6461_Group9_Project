@@ -76,7 +76,7 @@ With any Windows CLI:
 Within /txt/test_load.txt and /txt/test_listing.txt produced by test.asm through assembler.
 - Left = memory address (octal)
 - Right = 16 bit word (octal)
-E.g. of load.txt
+<br>E.g. of load.txt
 ```
 000006 000012
 ```
@@ -87,7 +87,7 @@ E.g. of listing.txt
 
 ## Output Example
 When running the JAR, the program should open a GUI. Something like this: <br>
-![Output](images/GUI.png)
+![Output](docs/images/GUI.png)
 
 ## GUI Overview
 Registers displays:
