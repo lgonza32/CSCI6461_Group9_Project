@@ -54,7 +54,6 @@ CSCI6461_GROUP9_PROJECT/
    └─ test_load.txt
 
 CSCI6461_Group9_Project.jar
-Project 0 Group 9 Design Notes
 README.md
 ```
 
@@ -69,7 +68,7 @@ With any Windows CLI:
 2. Navigate to project root directory
 3. Clone repository `https://github.com/lgonza32/CSCI6461_Group9_Project.git` or unzip and save into directory.
 4. Run the assembler using `java -jar CSCI6461_Group9_Project.jar`
-This executes the compiled `Main.java`, which automatically runs all tests found within the test folder.
+This executes the compiled `Main.java`, which automatically opens/runs GUI.
 
 ## Load File Format
 Within /txt/test_load.txt and /txt/test_listing.txt produced by test.asm through assembler.
