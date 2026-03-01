@@ -91,21 +91,21 @@ When running the JAR, the program should open a GUI. Something like this: <br>
 Registers displays:
 - GPR: R0–R3
 - IXR: X1–X3
-- Special Reg: PC, MAR, MBR, IR, CC, MFR
+- Special Reg: PC, MAR, MBR, IR, CC, MFR \
 Binary/Octal Input:
 - Binary field: accepts only 0/1 and is limited to 16 bits
 - Octal field: accepts octal digits (0–7)
 - Used by the Set Target panel and manual deposit/examine workflows.
-- Values are displayed in octal (6 digits for 16-bit style display)
+- Values are displayed in octal (6 digits for 16-bit style display) \
 Set Target Register:
 - Use dropdown target: PC, MAR, MBR, R0-R3, X1-X3
-- Press Set to write the value to the selected target
+- Press Set to write the value to the selected target \
 Memory Ops:
 - Load: MBR <- MEM[MAR]
 - Load+: Load then MAR++
 - Store: MEM[MAR] <- MBR
 - Store+: Store then MAR++
-- Cache Content panel shows the memory line at MAR (or a dump after IPL)
+- Cache Content panel shows the memory line at MAR (or a dump after IPL) \
 Controls:
 - IPL (red): choose a *_load.txt file and load into memory
 - Single Step: executes one instruction cycle (fetch/decode/execute)
@@ -117,22 +117,22 @@ Enter a value into a register (R0-R3):
 - Type value in Octal (e.g., 12) or Binary (e.g., 0000000000001010)
 - Target dropdown → R0
 - Click Set
-- Verify R0 updates in the register display
+- Verify R0 updates in the register display \
 Deposit a word into memory via "switches":
 - Target → MAR, set address (e.g., octal 7), click Set
 - Target → MBR, set data (e.g., octal 777), click Set
 - Click Store
-- Click Load to verify the value returns into MBR
+- Click Load to verify the value returns into MBR \
 Set PC and single step:
 - Target → PC, enter address, click Set
 - Click Single Step
-- Observe IR update and any opcode effects
+- Observe IR update and any opcode effects \
 IPL:
 - Click IPL and select /txt/test_load.txt (provided)
 - PC will automatically move to program start (e.g., 000016) based on listing
 - Click Single Step repeatedly to observe:
 - LDX, LDR, LDA, JZ, and final HLT
-- When halted, the console logs that CPU is halted and ignores further steps
+- When halted, the console logs that CPU is halted and ignores further steps \
 
 ## Summary
 To use:
