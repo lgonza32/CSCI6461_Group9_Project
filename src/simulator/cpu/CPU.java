@@ -100,6 +100,15 @@ public final class CPU {
                         Memory.toOct6(val) + "\n";
             }
 
+            // STR (octal 002 => decimal 2): MEM[EA] <- R[r]
+            case 2 -> {
+                int ea = computeEA(ix, ind, addr);
+                int val = s.getGPR(r);
+                mem.write(ea, val);
+                return "[STEP] STR MEM[" + Memory.toOct6(ea) + "] <- R" + r
+                        + " = " + Memory.toOct6(val) + "\n";
+            }
+
             // LDA (octal 003 => decimal 3): R[r] <- EA
             case 3 -> {
                 int ea = computeEA(ix, ind, addr);
@@ -133,6 +142,21 @@ public final class CPU {
 
                 return "[STEP] LDX X" + x + " <- MEM[" + Memory.toOct6(ea) + "] = " +
                         Memory.toOct6(val) + "\n";
+            }
+
+            // STX (octal 042 => decimal 34): MEM[EA] <- X[ix]
+            // NOTE: For STX, the ix field indicates which index register is the source.
+            case 34 -> {
+                int x = ix; // 1..3 expected
+                if (x == 0) {
+                    halted = true;
+                    return "[FAULT] STX with X=0 is invalid.\n";
+                }
+                int ea = computeEA_noIndex(ind, addr);
+                int val = s.getIXR(x);
+                mem.write(ea, val);
+                return "[STEP] STX MEM[" + Memory.toOct6(ea) + "] <- X" + x
+                        + " = " + Memory.toOct6(val) + "\n";
             }
 
             default -> {

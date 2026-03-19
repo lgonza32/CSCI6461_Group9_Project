@@ -95,7 +95,7 @@ public final class ProgramLoader {
      * Parse numbers from the LOAD FILE.
      *
      * IMPORTANT:
-     *  - Load file columns (LOC and WORD) are in octal in this project.
+     *  - Load file columns (LOC and WORD) are in octal.
      *  - i.e. tokens like "102207" must be interpreted as octal,
      *    even though they do not start with '0'.
      *

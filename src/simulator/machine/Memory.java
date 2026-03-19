@@ -16,7 +16,7 @@ import java.util.Arrays;
  */
 public final class Memory {
 
-    public static final int SIZE = 2048; // memory size in words (per project spec)
+    public static final int SIZE = 2048; // memory size in words
     private final int[] mem = new int[SIZE]; // backing storage. Each entry represents one 16-bit word
 
     /**

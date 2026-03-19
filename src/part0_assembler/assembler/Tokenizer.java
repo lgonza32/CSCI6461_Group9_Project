@@ -16,7 +16,7 @@ public final class Tokenizer {
 
     /**
      * Split a line into (code part) + (comment part).
-     * Only ';' starts a comment for this project spec.
+     * Only ';' starts a comment.
      */
     public Split splitComment(String originalLine) {
         int semi = originalLine.indexOf(';');
