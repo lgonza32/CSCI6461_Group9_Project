@@ -11,10 +11,10 @@ import simulator.machine.MachineState;
  * - Provides a repeatable PASS/FAIL test run
  * - Each test has its own Memory, MachineState, and CPU for debugging
  *
- * Current instruction groups validated here:
- * - Processor Control: HLT
- * - Load / Store: LDR, LDA, LDX, STR, STX
- * - Transfer: JZ, JNE, JCC, JMA, JSR, RFS, SOB, JGE
+ * Not currently validated:
+ * - CHK
+ * - Floating Point/Vector Instructions
+ * - Trap
  *
  * Notes:
  * - The current CPU decoder uses:
@@ -45,6 +45,7 @@ public final class InstructionTests {
         runArithmeticLogicTests();
         runRegisterToRegisterTests();
         runShiftRotateTests();
+        runIOTests();
         printSummary();
     }
 
@@ -183,6 +184,21 @@ public final class InstructionTests {
         testRRCLeft();
         testRRCRight();
         testRRCZeroCount();
+        System.out.println();
+    }
+
+    /**
+     * Run I/O instruction tests.
+     */
+    private static void runIOTests() {
+        System.out.println("=====================================================");
+        System.out.println("I/O Tests");
+        System.out.println("=====================================================");
+        testINKeyboardBasic();
+        testINNoInputAvailable();
+        testOUTPrinterBasic();
+        testINInvalidDevice();
+        testOUTInvalidDevice();
         System.out.println();
     }
 
@@ -1718,6 +1734,135 @@ public final class InstructionTests {
             "RRC zero count",
             s.getGPR(3) == 0xAAAA,
             "R3 should remain unchanged when count is 0"
+        );
+    }
+
+    // =====================================================
+    // I/O Tests
+    // =====================================================
+
+    /**
+     * IN basic:
+     * Read one character from keyboard device 0 into R0.
+     */
+    private static void testINKeyboardBasic() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+
+        final int[] input = { 'A' };
+        CPU cpu = new CPU(mem, s, () -> input[0], value -> {});
+
+        int instr = ENCODER.encodeIO("IN", 0, 0);
+
+        mem.write(0, instr);
+        s.setPC(0);
+
+        cpu.step();
+
+        check(
+            "IN keyboard basic",
+            s.getGPR(0) == 'A',
+            "R0 should receive character code for 'A'"
+        );
+    }
+
+    /**
+     * IN with no available input should not halt.
+     */
+    private static void testINNoInputAvailable() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+
+        CPU cpu = new CPU(mem, s, () -> -1, value -> {});
+
+        int instr = ENCODER.encodeIO("IN", 1, 0);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(1, 0);
+
+        String log = cpu.step();
+
+        check(
+            "IN no input",
+            !cpu.isHalted() && s.getGPR(1) == 0 && log.toLowerCase().contains("no input"),
+            "CPU should not halt when keyboard buffer is empty"
+        );
+    }
+
+    /**
+     * OUT basic:
+     * Output one character from R2 to printer device 1.
+     */
+    private static void testOUTPrinterBasic() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+
+        StringBuilder printer = new StringBuilder();
+        CPU cpu = new CPU(mem, s, () -> -1, value -> printer.append((char) value));
+
+        int instr = ENCODER.encodeIO("OUT", 2, 1);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(2, 'Z');
+
+        cpu.step();
+
+        check(
+            "OUT printer basic",
+            "Z".contentEquals(printer),
+            "Printer should receive character 'Z'"
+        );
+    }
+
+    /**
+     * IN invalid device:
+     * IN should only allow device 0 or 2.
+     */
+    private static void testINInvalidDevice() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+
+        CPU cpu = new CPU(mem, s, () -> 'A', value -> {});
+
+        int instr = ENCODER.encodeIO("IN", 0, 1);
+
+        mem.write(0, instr);
+        s.setPC(0);
+
+        String log = cpu.step();
+
+        check(
+            "IN invalid device",
+            cpu.isHalted() && log.toLowerCase().contains("only supports"),
+            "CPU should halt on invalid IN device"
+        );
+    }
+
+    /**
+     * OUT invalid device:
+     * OUT should only allow device 1.
+     */
+    private static void testOUTInvalidDevice() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+
+        StringBuilder printer = new StringBuilder();
+        CPU cpu = new CPU(mem, s, () -> -1, value -> printer.append((char) value));
+
+        int instr = ENCODER.encodeIO("OUT", 0, 0);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(0, 'X');
+
+        String log = cpu.step();
+
+        check(
+            "OUT invalid device",
+            cpu.isHalted() && log.toLowerCase().contains("only supports"),
+            "CPU should halt on invalid OUT device"
         );
     }
 

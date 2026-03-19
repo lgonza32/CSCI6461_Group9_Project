@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.function.Consumer;
 import simulator.cpu.CPU;
+import java.util.function.Supplier;
 
 /**
  * Controller for the CSCI 6461 simulator.
@@ -32,32 +33,69 @@ public final class Controller {
     private final Consumer<String> setProgramFilePath;
     private final Consumer<String> setCacheText;
     private final Runnable refreshUI;
+    private final Supplier<String> getConsoleInputText;
+    private final Consumer<String> setConsoleInputText;
+    private final Consumer<String> appendPrinterOutput;
     private final ProgramLoader loader = new ProgramLoader();
     private final Memory memory = new Memory();
     private final MachineState state = new MachineState();
-    private final CPU cpu = new CPU(memory, state);
+    private final CPU cpu;
 
     /**
-     * Constructs the Controller.
+     * Cointroller construct that connects the simulator core to the GUI.
      *
-     * @param parent component used for dialog placement (file chooser)
-     * @param log callback for writing messages to Console Output
-     * @param setProgramFilePath callback for updating the GUI Program File field
+     * This controller owns the main machine components (memory, state, CPU)
+     * and uses callbacks to communicate with the Swing user interface without
+     * tightly coupling simulator logic to specific GUI widgets.
+     *
+     * The callbacks provide access to:
+     * - simulator log output
+     * - selected program file path display
+     * - cache/debug display
+     * - register/state refresh behavior
+     * - console keyboard input
+     * - console keyboard input replacement after characters are consumed
+     * - console printer output
+     *
+     * @param parent                parent component used for dialogs
+     * @param log                   callback used to append text to the GUI log area
+     * @param setProgramFilePath    callback used to update the program file text field
+     * @param setCacheText          callback used to update the cache display area
+     * @param refreshUI             callback used to refresh GUI register/state widgets
+     * @param getConsoleInputText   callback that returns the current console input text
+     * @param setConsoleInputText   callback that replaces the console input text
+     * @param appendPrinterOutput   callback that appends text to the printer area
      */
-    public Controller(Component parent,
-                      Consumer<String> log,
-                      Consumer<String> setProgramFilePath,
-                      Consumer<String> setCacheText,
-                      Runnable refreshUI) {
+    public Controller(
+            Component parent,
+            Consumer<String> log,
+            Consumer<String> setProgramFilePath,
+            Consumer<String> setCacheText,
+            Runnable refreshUI,
+            Supplier<String> getConsoleInputText,
+            Consumer<String> setConsoleInputText,
+            Consumer<String> appendPrinterOutput) {
+
         this.parent = parent;
         this.log = log;
         this.setProgramFilePath = setProgramFilePath;
         this.setCacheText = setCacheText;
         this.refreshUI = refreshUI;
+        this.getConsoleInputText = getConsoleInputText;
+        this.setConsoleInputText = setConsoleInputText;
+        this.appendPrinterOutput = appendPrinterOutput;
 
-        // Start “powered on” with cleared state
+        // start from a clean machine state
         memory.clear();
         state.clear();
+
+        // build the CPU with callbacks for keyboard/printer device I/O.
+        this.cpu = new CPU(
+                memory,
+                state,
+                this::readNextConsoleChar,
+                this::writePrinterChar
+        );
     }
 
     /* ==========================
@@ -267,12 +305,13 @@ public final class Controller {
     }
 
     public void handleReset() {
+        // Clear machine components and GUI output areas for a fresh run.
         memory.clear();
         state.clear();
-        setCacheText.accept("");
-        log.accept("[RESET] Cleared registers and memory.\n");
-        refreshUI.run();
         cpu.reset();
+        appendPrinterOutput.accept("");
+        refreshUI.run();
+        log.accept("[RESET] Machine state cleared.\n");
     }
 
     public void handleLoad() {
@@ -379,5 +418,46 @@ public final class Controller {
             log.accept("[IPL] Warning: couldn't parse listing for start address.\n");
         }
         return null;
+    }
+
+    /**
+     * Read one character from the GUI console input field.
+     *
+     * Behavior:
+     * - If the input field is empty, return -1 to indicate that no input is ready
+     * - Otherwise, consume the first character and remove it from the field
+     *
+     * This method is used by CPU device input instructions such as IN.
+     *
+     * @return next character code as an integer, or -1 if no input is available
+     */
+    private int readNextConsoleChar() {
+        String text = getConsoleInputText.get();
+
+        // No input is available right now.
+        if (text == null || text.isEmpty()) {
+            return -1;
+        }
+
+        // Consume the first available character.
+        char ch = text.charAt(0);
+
+        // Remove the consumed character from the GUI input field.
+        String remaining = text.substring(1);
+        setConsoleInputText.accept(remaining);
+
+        return ch;
+    }
+
+    /**
+     * Append one character to the GUI printer area.
+     *
+     * This method is used by CPU device output instructions such as OUT.
+     *
+     * @param value low 8-bit character code to print
+     */
+    private void writePrinterChar(int value) {
+        char ch = (char) (value & 0xFF);
+        appendPrinterOutput.accept(Character.toString(ch));
     }
 }

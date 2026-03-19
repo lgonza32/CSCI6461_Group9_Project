@@ -26,7 +26,14 @@ public final class GUI extends JFrame {
     private final Controller controller;
 
     /**
-     * Constructor for GUI frame
+     * Construct the simulator graphical user interface.
+     *
+     * This frame creates the front-panel style controls, register displays,
+     * console input area, printer output area, and cache/debug area used by
+     * the simulator. It also creates the controller that connects the GUI to
+     * the underlying machine state, memory, and CPU execution logic.
+     *
+     * Core simulator behavior remains inside the controller and CPU classes.
      */
     public GUI() {
         
@@ -40,8 +47,15 @@ public final class GUI extends JFrame {
                 this::log,
                 programFileField::setText,
                 cacheArea::setText,
-                () -> refreshFromController()
+                this::refreshFromController,
+                this::getConsoleInputText,
+                this::setConsoleInputText,
+                this::appendPrinterOutput
         );
+
+        // start with an empty printer output area so OUT instructions
+        // write visible output without placeholder text mixed in
+        clearPrinterOutput();
         
         // builds GUI
         // setContentPane(buildRightColumn()); // test right side
@@ -54,7 +68,6 @@ public final class GUI extends JFrame {
 
         // only input binary
         applyBinaryFilter(binaryInputField, 16);
-
 
         // stylize GUI settings
         // label.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12)); // font
@@ -609,7 +622,7 @@ public final class GUI extends JFrame {
     }
 
     /** ==================================
-     * SECTION FOR UTILITIES/DEBUGGING
+     * Console / Printer Helpers
      * ===================================*/
 
     /**
@@ -702,5 +715,38 @@ public final class GUI extends JFrame {
                 super.replace(fb, offset, length, text, attrs);
             }
         });
+    }
+
+    /**
+     * Return the current text in the console input field.
+     * @return current console input text
+     */
+    private String getConsoleInputText() {
+        return consoleInputField.getText();
+    }
+
+    /**
+     * Replace the text in the console input field.
+
+     * @param text new console input text
+     */
+    private void setConsoleInputText(String text) {
+        consoleInputField.setText(text);
+    }
+
+    /**
+     * Append text to the printer output area.
+     *
+     * @param text text to append to the printer area
+     */
+    private void appendPrinterOutput(String text) {
+        printerArea.append(text);
+    }
+
+    /**
+     * Clear the printer output area.
+     */
+    private void clearPrinterOutput() {
+        printerArea.setText("");
     }
 }

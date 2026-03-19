@@ -2,18 +2,16 @@ package simulator.cpu;
 
 import simulator.machine.Memory;
 import simulator.machine.MachineState;
+import java.util.function.IntConsumer;
+import java.util.function.IntSupplier;
 
 /**
  * CPU implements the fetch/decode/execute cycle for the simulator.
- *  - Single-step should fetch the instruction at PC, show it in IR,
- *    and execute enough opcodes to demo addressing modes.
  *
- * Implemented opcodes
- *  - HLT (000)
- *  - LDR (001)
- *  - LDA (003)
- *  - JZ  (010)
- *  - LDX (041)
+ * Non-implemented instructions
+ *  - CHK
+ *  - FLoating Point/Vector
+ *  - Trap
  *
  * Notes:
  *  - Basic format decode: opcode(6) r(2) ix(2) I(1) addr(5)
@@ -25,10 +23,35 @@ public final class CPU {
     private final Memory mem;
     private final MachineState s;
     private boolean halted = false;
+    /** Reads one input character code from a device callback. Returns -1 if no data. */
+    private final IntSupplier inputReader;
+    /** Writes one output character code to a device callback. */
+    private final IntConsumer outputWriter; 
 
+    /**
+     * Construct a CPU attached to memory and machine state.
+     * Uses no-op I/O callbacks by default.
+     *
+     * @param mem   machine memory
+     * @param state machine register state
+     */
     public CPU(Memory mem, MachineState state) {
+        this(mem, state, () -> -1, value -> {});
+    }
+
+    /**
+     * Construct a CPU attached to memory, state, and I/O callbacks.
+     *
+     * @param mem           machine memory
+     * @param state         machine register state
+     * @param inputReader   callback that returns one input character code, or -1 if none
+     * @param outputWriter  callback that consumes one output character code
+     */
+    public CPU(Memory mem, MachineState state, IntSupplier inputReader, IntConsumer outputWriter) {
         this.mem = mem;
         this.s = state;
+        this.inputReader = inputReader;
+        this.outputWriter = outputWriter;
     }
 
     public boolean isHalted() {
@@ -453,6 +476,55 @@ public final class CPU {
                     mem.write(ea, val);
                     return "[STEP] STX MEM[" + Memory.toOct6(ea) + "] <- X" + x
                             + " = " + Memory.toOct6(val) + "\n";
+                }
+
+                // -------------------------------------------------
+                // I/O Instructions
+                // -------------------------------------------------
+
+                // IN (octal 061 => decimal 49)
+                // Input one character from device into register r
+                case 49 -> {
+                    int devid = addr & 0x1F;
+
+                    // IN with keyboard (0) and card reader (2)
+                    if (devid != 0 && devid != 2) {
+                        halted = true;
+                        return "[FAULT] IN only supports device 0 (keyboard) or 2 (card reader).\n";
+                    }
+
+                    int ch = inputReader.getAsInt();
+
+                    // no input 
+                    if (ch < 0) {
+                        return "[STEP] IN waiting/no input available on device " + devid + "\n";
+                    }
+
+                    // store the character code in the target register
+                    s.setGPR(r, ch & 0xFFFF);
+
+                    return "[STEP] IN R" + r + " <- " + Memory.toOct6(ch & 0xFFFF)
+                            + " from device " + devid + "\n";
+                }
+
+                // OUT (octal 062 => decimal 50)
+                // Output one character from register r to device
+                case 50 -> {
+                    int devid = addr & 0x1F;
+
+                    //  OUT with printer (1)
+                    if (devid != 1) {
+                        halted = true;
+                        return "[FAULT] OUT only supports device 1 (console printer).\n";
+                    }
+
+                    int value = s.getGPR(r) & 0xFF;
+
+                    // send the low 8 bits as one character to the output device
+                    outputWriter.accept(value);
+
+                    return "[STEP] OUT device 1 <- R" + r
+                            + " = " + Memory.toOct6(value) + "\n";
                 }
 
                 // -------------------------------------------------
