@@ -1,7 +1,5 @@
 package simulator.tests;
 
-import java.util.List;
-
 import part0_assembler.Encoder;
 import simulator.cpu.CPU;
 import simulator.machine.Memory;
@@ -11,25 +9,35 @@ import simulator.machine.MachineState;
  * Test validation for opcode instructions in simulator
  * - Demonstrates that individual instructions work
  * - Provides a repeatable PASS/FAIL test run
+ * - Each test has its own Memory, MachineState, and CPU for debugging
  *
  * Current instruction groups validated here:
  * - Processor Control: HLT
- * - Load/Store: LDR, LDA, LDX, STR, STX
- * - Transfer: JZ
+ * - Load / Store: LDR, LDA, LDX, STR, STX
+ * - Transfer: JZ, JNE, JCC, JMA, JSR, RFS, SOB, JGE
  *
  * Notes:
  * - The current CPU decoder uses:
  *   opcode(6) | r(2) | ix(2) | I(1) | address(5)
+ * - Tests for instructions not yet implemented in CPU.java will fail until
+ *   their CPU switch cases are added.
  */
 public final class InstructionTests {
 
-    // Shared encoder instance reused across all tests.
+     /** Shared encoder used to build machine instructions for tests. */
     private static final Encoder ENCODER = new Encoder();
 
-    // Summary counters shown at the end of the run.
+    /** Running count of passed tests. */
     private static int passed = 0;
-    private static int failed = 0;
 
+    /** Running count of failed tests. */
+    private static int failed = 0;
+    
+    /**
+     * Run all current simulator instruction tests.
+     *
+     * @param args ignored
+     */
     public static void main(String[] args) {
         runProcessorControlTests();
         runLoadStoreTests();
@@ -77,7 +85,6 @@ public final class InstructionTests {
         testSTXDirect();
         testSTXIndirect();
         testSTXInvalidX0();
-
         System.out.println();
     }
 
@@ -90,6 +97,22 @@ public final class InstructionTests {
         System.out.println("=====================================================");
         testJZTaken();
         testJZNotTaken();
+
+        testJNETaken();
+        testJNENotTaken();
+
+        testJCCTaken();
+        testJCCNotTaken();
+
+        testJMA();
+        testJSR();
+        testRFS();
+
+        testSOBTaken();
+        testSOBNotTaken();
+
+        testJGETaken();
+        testJGENotTaken();
         System.out.println();
     }
 
@@ -109,41 +132,22 @@ public final class InstructionTests {
     // =====================================================
 
     /**
-     * Encodes a normal basic-format instruction with no indirect bit.
-     * Format: OP r,x,address
+     * Create a CPU for a test.
+     *
+     * @param mem   memory instance
+     * @param state machine state instance
+     * @return      connected CPU
      */
-    private static int encodeBasic(String mnemonic, String r, String ix, String address) {
-        return ENCODER.encodeFormat(mnemonic, List.of(r, ix, address));
+    private static CPU newCPU(Memory mem, MachineState state) {
+        return new CPU(mem, state);
     }
 
     /**
-     * Encodes a normal basic-format instruction with indirect addressing.
-     * Format: OP r,x,address,1
-     */
-    private static int encodeBasicIndirect(String mnemonic, String r, String ix, String address) {
-        return ENCODER.encodeFormat(mnemonic, List.of(r, ix, address, "1"));
-    }
-
-    /**
-     * Encodes LDX/STX with no indirect bit.
-     * These use the assembler adaptation:
-     * x,address -> 0,x,address
-     */
-    private static int encodeXInstruction(String mnemonic, String x, String address) {
-        return ENCODER.encodeFormat(mnemonic, List.of("0", x, address));
-    }
-
-    /**
-     * Encodes LDX/STX with indirect addressing.
-     * These use the assembler adaptation:
-     * x,address,1 -> 0,x,address,1
-     */
-    private static int encodeXInstructionIndirect(String mnemonic, String x, String address) {
-        return ENCODER.encodeFormat(mnemonic, List.of("0", x, address, "1"));
-    }
-
-    /**
-     * PASS/FAIL reporter.
+     * Record and print PASS/FAIL result for one test.
+     *
+     * @param name      short test name
+     * @param ok        whether the test passed
+     * @param details   short human-readable description
      */
     private static void check(String name, boolean ok, String details) {
         if (ok) {
@@ -153,13 +157,6 @@ public final class InstructionTests {
             failed++;
             System.out.println("[FAIL] " + name + " - " + details);
         }
-    }
-
-    /**
-     * Convenience helper to build a clean CPU for each test.
-     */
-    private static CPU newCPU(Memory mem, MachineState s) {
-        return new CPU(mem, s);
     }
 
     // =====================================================
@@ -220,7 +217,7 @@ public final class InstructionTests {
     }
 
     // =====================================================
-    // Load / Store Tests - LDR
+    // Load / Store Tests
     // =====================================================
 
     /**
@@ -232,7 +229,7 @@ public final class InstructionTests {
         MachineState s = new MachineState();
         CPU cpu = newCPU(mem, s);
 
-        int instr = encodeBasic("LDR", "1", "0", "20");
+        int instr = ENCODER.encodeBasic("LDR", 1, 0, 20);
 
         mem.write(0, instr);
         mem.write(20, 83); // decimal 83 = octal 000123
@@ -259,7 +256,7 @@ public final class InstructionTests {
         MachineState s = new MachineState();
         CPU cpu = newCPU(mem, s);
 
-        int instr = encodeBasic("LDR", "2", "1", "5");
+        int instr = ENCODER.encodeBasic("LDR", 2, 1, 5);
 
         mem.write(0, instr);
         mem.write(15, 302); // decimal 302 = octal 000456
@@ -284,7 +281,7 @@ public final class InstructionTests {
         MachineState s = new MachineState();
         CPU cpu = newCPU(mem, s);
 
-        int instr = encodeBasicIndirect("LDR", "0", "0", "12");
+        int instr = ENCODER.encodeBasicIndirect("LDR", 0, 0, 12, 1);
 
         mem.write(0, instr);
         mem.write(12, 21);   // pointer
@@ -300,10 +297,6 @@ public final class InstructionTests {
         );
     }
 
-    // =====================================================
-    // Load / Store Tests - LDA
-    // =====================================================
-
     /**
      * LDA direct:
      * LDA R3,0,17 => R3 <- EA = 17
@@ -313,7 +306,7 @@ public final class InstructionTests {
         MachineState s = new MachineState();
         CPU cpu = newCPU(mem, s);
 
-        int instr = encodeBasic("LDA", "3", "0", "17");
+        int instr = ENCODER.encodeBasic("LDA", 3, 0, 17);
 
         mem.write(0, instr);
         s.setPC(0);
@@ -336,7 +329,7 @@ public final class InstructionTests {
         MachineState s = new MachineState();
         CPU cpu = newCPU(mem, s);
 
-        int instr = encodeBasic("LDA", "0", "2", "6");
+        int instr = ENCODER.encodeBasic("LDA", 0, 2, 6);
 
         mem.write(0, instr);
         s.setPC(0);
@@ -351,10 +344,6 @@ public final class InstructionTests {
         );
     }
 
-    // =====================================================
-    // Load / Store Tests - LDX
-    // =====================================================
-
     /**
      * LDX direct:
      * LDX X2,25 => X2 <- MEM[25]
@@ -364,7 +353,7 @@ public final class InstructionTests {
         MachineState s = new MachineState();
         CPU cpu = newCPU(mem, s);
 
-        int instr = encodeXInstruction("LDX", "2", "25");
+        int instr = ENCODER.encodeXAddress("LDX", 2, 25);
 
         mem.write(0, instr);
         mem.write(25, 209); // decimal 209 = octal 000321
@@ -388,7 +377,7 @@ public final class InstructionTests {
         MachineState s = new MachineState();
         CPU cpu = newCPU(mem, s);
 
-        int instr = encodeXInstructionIndirect("LDX", "1", "12");
+        int instr = ENCODER.encodeXAddressIndirect("LDX", 1, 12, 1);
 
         mem.write(0, instr);
         mem.write(12, 20);  // pointer
@@ -412,7 +401,7 @@ public final class InstructionTests {
         MachineState s = new MachineState();
         CPU cpu = newCPU(mem, s);
 
-        int instr = encodeXInstruction("LDX", "0", "10");
+        int instr = ENCODER.encodeXAddress("LDX", 0, 10);
 
         mem.write(0, instr);
         s.setPC(0);
@@ -426,10 +415,6 @@ public final class InstructionTests {
         );
     }
 
-    // =====================================================
-    // Load / Store Tests - STR
-    // =====================================================
-
     /**
      * STR direct:
      * STR R1,0,20 => MEM[20] <- R1
@@ -439,7 +424,7 @@ public final class InstructionTests {
         MachineState s = new MachineState();
         CPU cpu = newCPU(mem, s);
 
-        int instr = encodeBasic("STR", "1", "0", "20");
+        int instr = ENCODER.encodeBasic("STR", 1, 0, 20);
 
         mem.write(0, instr);
         s.setPC(0);
@@ -466,7 +451,7 @@ public final class InstructionTests {
         MachineState s = new MachineState();
         CPU cpu = newCPU(mem, s);
 
-        int instr = encodeBasic("STR", "3", "2", "5");
+        int instr = ENCODER.encodeBasic("STR", 3, 2, 5);
 
         mem.write(0, instr);
         s.setPC(0);
@@ -485,10 +470,6 @@ public final class InstructionTests {
         );
     }
 
-    // =====================================================
-    // Load / Store Tests - STX
-    // =====================================================
-
     /**
      * STX direct:
      * STX X2,25 => MEM[25] <- X2
@@ -498,7 +479,7 @@ public final class InstructionTests {
         MachineState s = new MachineState();
         CPU cpu = newCPU(mem, s);
 
-        int instr = encodeXInstruction("STX", "2", "25");
+        int instr = ENCODER.encodeXAddress("STX", 2, 25);
 
         mem.write(0, instr);
         s.setPC(0);
@@ -524,7 +505,7 @@ public final class InstructionTests {
         MachineState s = new MachineState();
         CPU cpu = newCPU(mem, s);
 
-        int instr = encodeXInstructionIndirect("STX", "1", "12");
+        int instr = ENCODER.encodeXAddressIndirect("STX", 1, 12, 1);
 
         mem.write(0, instr);
         mem.write(12, 20); // pointer
@@ -551,7 +532,7 @@ public final class InstructionTests {
         MachineState s = new MachineState();
         CPU cpu = newCPU(mem, s);
 
-        int instr = encodeXInstruction("STX", "0", "10");
+        int instr = ENCODER.encodeXAddress("STX", 0, 10);
 
         mem.write(0, instr);
         s.setPC(0);
@@ -566,7 +547,7 @@ public final class InstructionTests {
     }
 
     // =====================================================
-    // Transfer Tests - JZ
+    // Transfer Tests
     // =====================================================
 
     /**
@@ -578,7 +559,7 @@ public final class InstructionTests {
         MachineState s = new MachineState();
         CPU cpu = newCPU(mem, s);
 
-        int instr = encodeBasic("JZ", "1", "0", "18");
+        int instr = ENCODER.encodeBasic("JZ", 1, 0, 18);
 
         mem.write(0, instr);
         s.setPC(0);
@@ -602,7 +583,7 @@ public final class InstructionTests {
         MachineState s = new MachineState();
         CPU cpu = newCPU(mem, s);
 
-        int instr = encodeBasic("JZ", "1", "0", "18");
+        int instr = ENCODER.encodeBasic("JZ", 1, 0, 18);
 
         mem.write(0, instr);
         s.setPC(0);
@@ -614,6 +595,271 @@ public final class InstructionTests {
             "JZ not taken",
             s.getPC() == 1,
             "PC should stay at sequential next instruction when register is nonzero"
+        );
+    }
+
+    /**
+     * JNE taken:
+     * If R1 != 0, then PC <- EA
+     */
+    private static void testJNETaken() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeBasic("JNE", 1, 0, 19);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(1, 7);
+
+        cpu.step();
+
+        check(
+            "JNE taken",
+            s.getPC() == 19,
+            "PC should branch when register is nonzero"
+        );
+    }
+
+    /**
+     * JNE not taken:
+     * If R1 == 0, then execution continues sequentially.
+     */
+    private static void testJNENotTaken() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeBasic("JNE", 1, 0, 19);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(1, 0);
+
+        cpu.step();
+
+        check(
+            "JNE not taken",
+            s.getPC() == 1,
+            "PC should continue sequentially"
+        );
+    }
+
+    /**
+     * JCC taken:
+     * If selected CC bit is set, then PC <- EA.
+     */
+    private static void testJCCTaken() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeBasic("JCC", 2, 0, 21);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setCC(1 << 2);
+
+        cpu.step();
+
+        check(
+            "JCC taken",
+            s.getPC() == 21,
+            "PC should branch when CC bit is set"
+        );
+    }
+
+    /**
+     * JCC not taken:
+     * If selected CC bit is clear, then execution continues sequentially.
+     */
+    private static void testJCCNotTaken() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeBasic("JCC", 2, 0, 21);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setCC(0);
+
+        cpu.step();
+
+        check(
+            "JCC not taken",
+            s.getPC() == 1,
+            "PC should continue sequentially"
+        );
+    }
+
+    /**
+     * JMA:
+     * Unconditional jump to EA.
+     */
+    private static void testJMA() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeXAddress("JMA", 2, 5);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setIXR(2, 10); // EA = 15
+
+        cpu.step();
+
+        check(
+            "JMA",
+            s.getPC() == 15,
+            "PC should jump unconditionally"
+        );
+    }
+
+    
+    /**
+     * JSR:
+     * Save return address in R3 and jump to EA.
+     */
+    private static void testJSR() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeXAddress("JSR", 1, 7);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setIXR(1, 8); // EA = 15
+
+        cpu.step();
+
+        check(
+            "JSR",
+            s.getGPR(3) == 1 && s.getPC() == 15,
+            "R3 should store return address and PC should jump"
+        );
+    }
+
+    /**
+     * RFS:
+     * R0 <- immed, PC <- R3
+     */
+    private static void testRFS() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeRFS(9);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(3, 22);
+
+        cpu.step();
+
+        check(
+            "RFS",
+            s.getGPR(0) == 9 && s.getPC() == 22,
+            "R0 should receive immed and PC should return through R3"
+        );
+    }
+
+    /**
+     * SOB taken:
+     * Decrement register, then branch if result > 0.
+     */
+    private static void testSOBTaken() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeBasic("SOB", 2, 0, 14);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(2, 2);
+
+        cpu.step();
+
+        check(
+            "SOB taken",
+            s.getGPR(2) == 1 && s.getPC() == 14,
+            "Register should decrement and branch"
+        );
+    }
+
+    /**
+     * SOB not taken:
+     * Decrement register, but do not branch if result <= 0.
+     */
+    private static void testSOBNotTaken() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeBasic("SOB", 2, 0, 14);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(2, 1);
+
+        cpu.step();
+
+        check(
+            "SOB not taken",
+            s.getGPR(2) == 0 && s.getPC() == 1,
+            "Register should decrement and continue sequentially"
+        );
+    }
+
+    /**
+     * JGE taken:
+     * Branch if register is nonnegative in signed 16-bit form.
+     */
+    private static void testJGETaken() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeBasic("JGE", 0, 0, 17);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(0, 0x0001);
+
+        cpu.step();
+
+        check(
+            "JGE taken",
+            s.getPC() == 17,
+            "PC should branch when register is nonnegative"
+        );
+    }
+
+    /**
+     * JGE not taken:
+     * Do not branch if register is negative in signed 16-bit form.
+     */
+    private static void testJGENotTaken() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeBasic("JGE", 0, 0, 17);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(0, 0xFFFF); // -1 in signed 16-bit form
+
+        cpu.step();
+
+        check(
+            "JGE not taken",
+            s.getPC() == 1,
+            "PC should continue sequentially when register is negative"
         );
     }
 }
