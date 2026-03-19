@@ -36,7 +36,7 @@ public final class opcode_table {
         map.put("JZ",010);   // Jump If Zero
         map.put("JNE",011);  // Jump If Not Equal
         map.put("JCC",012);  // Jump If Condition Code
-        map.put("JMA",013);  // Jump If Condition Code
+        map.put("JMA",013);  // Unconditional Jump To Address
         map.put("JSR",014);  // Jump and Save Return Address
         map.put("RFS",015);  // Return From Subroutine
         map.put("SOB",016);  // Subtract One and Branch
