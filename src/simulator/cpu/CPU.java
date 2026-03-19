@@ -118,6 +118,100 @@ public final class CPU {
                 }
 
                 // -------------------------------------------------
+                // Arithmetic and Logical Instructions
+                // -------------------------------------------------
+
+                // AMR (octal 004 => decimal 4)
+                // R[r] <- R[r] + MEM[EA]
+                case 4 -> {
+                    int ea = computeEA(ix, ind, addr);
+
+                    int regVal = toSigned16(s.getGPR(r));
+                    int memVal = toSigned16(mem.read(ea));
+                    int wideResult = regVal + memVal;
+
+                    updateArithmeticCC(wideResult);
+
+                    int finalVal = wideResult & 0xFFFF;
+                    s.setGPR(r, finalVal);
+
+                    return "[STEP] AMR R" + r + " <- "
+                            + Memory.toOct6(finalVal)
+                            + " using MEM[" + Memory.toOct6(ea) + "] = "
+                            + Memory.toOct6(memVal & 0xFFFF) + "\n";
+                }
+
+                // SMR (octal 005 => decimal 5)
+                // R[r] <- R[r] - MEM[EA]
+                case 5 -> {
+                    int ea = computeEA(ix, ind, addr);
+
+                    int regVal = toSigned16(s.getGPR(r));
+                    int memVal = toSigned16(mem.read(ea));
+                    int wideResult = regVal - memVal;
+
+                    updateArithmeticCC(wideResult);
+
+                    int finalVal = wideResult & 0xFFFF;
+                    s.setGPR(r, finalVal);
+
+                    return "[STEP] SMR R" + r + " <- "
+                            + Memory.toOct6(finalVal)
+                            + " using MEM[" + Memory.toOct6(ea) + "] = "
+                            + Memory.toOct6(memVal & 0xFFFF) + "\n";
+                }
+
+                // AIR (octal 006 => decimal 6)
+                // R[r] <- R[r] + immed
+                // IX and I are ignored
+                case 6 -> {
+                    int immed = addr & 0x1F;
+
+                    // If immed is 0, the ISA says do nothing.
+                    if (immed == 0) {
+                        clearArithmeticCC();
+                        return "[STEP] AIR no-op (immed = 0)\n";
+                    }
+
+                    int regVal = toSigned16(s.getGPR(r));
+                    int wideResult = regVal + immed;
+
+                    updateArithmeticCC(wideResult);
+
+                    int finalVal = wideResult & 0xFFFF;
+                    s.setGPR(r, finalVal);
+
+                    return "[STEP] AIR R" + r + " <- "
+                            + Memory.toOct6(finalVal)
+                            + " using immed " + Memory.toOct6(immed) + "\n";
+                }
+
+                // SIR (octal 007 => decimal 7)
+                // R[r] <- R[r] - immed
+                // IX and I are ignored
+                case 7 -> {
+                    int immed = addr & 0x1F;
+
+                    // If immed is 0, the ISA says do nothing.
+                    if (immed == 0) {
+                        clearArithmeticCC();
+                        return "[STEP] SIR no-op (immed = 0)\n";
+                    }
+
+                    int regVal = toSigned16(s.getGPR(r));
+                    int wideResult = regVal - immed;
+
+                    updateArithmeticCC(wideResult);
+
+                    int finalVal = wideResult & 0xFFFF;
+                    s.setGPR(r, finalVal);
+
+                    return "[STEP] SIR R" + r + " <- "
+                            + Memory.toOct6(finalVal)
+                            + " using immed " + Memory.toOct6(immed) + "\n";
+                }
+
+                // -------------------------------------------------
                 // Transfer Instructions
                 // -------------------------------------------------
 
@@ -393,5 +487,61 @@ public final class CPU {
      */
     private boolean isCCBitSet(int ccIndex) {
         return ((s.getCC() >>> ccIndex) & 0x1) == 1;
+    }
+
+    /**
+     * Set or clear one condition-code bit.
+     *
+     * CC bit convention:
+     * 0 = overflow
+     * 1 = underflow
+     * 2 = division by zero
+     * 3 = equal-or-not
+     *
+     * @param bitIndex CC bit to modify
+     * @param value true to set the bit, false to clear it
+     */
+    private void setCCBit(int bitIndex, boolean value) {
+        int cc = s.getCC();
+
+        if (value) {
+            cc |= (1 << bitIndex);
+        } else {
+            cc &= ~(1 << bitIndex);
+        }
+
+        s.setCC(cc);
+    }
+
+    /**
+     * Clear only the arithmetic CC bits before an arithmetic operation.
+     *
+     * We leave:
+     * - DIVZERO (bit 2)
+     * - EQUALORNOT (bit 3)
+     *
+     * unchanged here because those belong to other instructions.
+     */
+    private void clearArithmeticCC() {
+        setCCBit(0, false); // overflow
+        setCCBit(1, false); // underflow
+    }
+
+    /**
+     * Update arithmetic CC flags from a full-width signed result.
+     *
+     * If the signed result is larger than 16-bit signed max, set overflow.
+     * If the signed result is smaller than 16-bit signed min, set underflow.
+     *
+     * @param wideResult signed arithmetic result before 16-bit truncation
+     */
+    private void updateArithmeticCC(int wideResult) {
+        clearArithmeticCC();
+
+        if (wideResult > Short.MAX_VALUE) {
+            setCCBit(0, true); // overflow
+        } else if (wideResult < Short.MIN_VALUE) {
+            setCCBit(1, true); // underflow
+        }
     }
 }

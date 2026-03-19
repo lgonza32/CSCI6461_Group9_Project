@@ -42,6 +42,7 @@ public final class InstructionTests {
         runProcessorControlTests();
         runLoadStoreTests();
         runTransferTests();
+        runArithmeticImmediateTests();
         printSummary();
     }
 
@@ -117,6 +118,24 @@ public final class InstructionTests {
     }
 
     /**
+     * Run arithmetic and immediate instruction tests.
+     */
+    private static void runArithmeticImmediateTests() {
+        System.out.println("=====================================================");
+        System.out.println("Arithmetic / Immediate Tests");
+        System.out.println("=====================================================");
+        testAMRDirect();
+        testAMRIndexed();
+        testSMRDirect();
+        testAIRBasic();
+        testAIRZeroImmediate();
+        testSIRBasic();
+        testSIRZeroImmediate();
+        testSIRFromZero();
+        System.out.println();
+    }
+
+    /**
      * Prints the final summary.
      */
     private static void printSummary() {
@@ -125,38 +144,6 @@ public final class InstructionTests {
         System.out.println("=====================================================");
         System.out.println("Passed: " + passed);
         System.out.println("Failed: " + failed);
-    }
-
-    // =====================================================
-    // Helpers
-    // =====================================================
-
-    /**
-     * Create a CPU for a test.
-     *
-     * @param mem   memory instance
-     * @param state machine state instance
-     * @return      connected CPU
-     */
-    private static CPU newCPU(Memory mem, MachineState state) {
-        return new CPU(mem, state);
-    }
-
-    /**
-     * Record and print PASS/FAIL result for one test.
-     *
-     * @param name      short test name
-     * @param ok        whether the test passed
-     * @param details   short human-readable description
-     */
-    private static void check(String name, boolean ok, String details) {
-        if (ok) {
-            passed++;
-            System.out.println("[PASS] " + name + " - " + details);
-        } else {
-            failed++;
-            System.out.println("[FAIL] " + name + " - " + details);
-        }
     }
 
     // =====================================================
@@ -861,5 +848,239 @@ public final class InstructionTests {
             s.getPC() == 1,
             "PC should continue sequentially when register is negative"
         );
+    }
+
+    // =====================================================
+    // Arithmetic and Logical Tests
+    // =====================================================
+
+    /**
+     * AMR direct:
+     * AMR R1,0,20 => R1 <- R1 + MEM[20]
+     */
+    private static void testAMRDirect() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeBasic("AMR", 1, 0, 20);
+
+        mem.write(0, instr);
+        mem.write(20, 5);
+        s.setPC(0);
+        s.setGPR(1, 7);
+
+        cpu.step();
+
+        check(
+            "AMR direct",
+            s.getGPR(1) == 12,
+            "R1 should become R1 + MEM[20]"
+        );
+    }
+
+    /**
+     * AMR indexed:
+     * AMR R2,1,5 with X1=10 => EA=15 => R2 <- R2 + MEM[15]
+     */
+    private static void testAMRIndexed() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeBasic("AMR", 2, 1, 5);
+
+        mem.write(0, instr);
+        mem.write(15, 9);
+        s.setPC(0);
+        s.setIXR(1, 10);
+        s.setGPR(2, 4);
+
+        cpu.step();
+
+        check(
+            "AMR indexed",
+            s.getGPR(2) == 13,
+            "R2 should become R2 + MEM[X1+5]"
+        );
+    }
+
+    /**
+     * SMR direct:
+     * SMR R3,0,12 => R3 <- R3 - MEM[12]
+     */
+    private static void testSMRDirect() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeBasic("SMR", 3, 0, 12);
+
+        mem.write(0, instr);
+        mem.write(12, 7);
+        s.setPC(0);
+        s.setGPR(3, 20);
+
+        cpu.step();
+
+        check(
+            "SMR direct",
+            s.getGPR(3) == 13,
+            "R3 should become R3 - MEM[12]"
+        );
+    }
+
+    /**
+     * AIR basic:
+     * AIR R0,9 => R0 <- R0 + 9
+     */
+    private static void testAIRBasic() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeImmediate("AIR", 0, 9);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(0, 3);
+
+        cpu.step();
+
+        check(
+            "AIR basic",
+            s.getGPR(0) == 12,
+            "R0 should increase by immediate value"
+        );
+    }
+
+    /**
+     * AIR with immed = 0 should do nothing.
+     */
+    private static void testAIRZeroImmediate() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeImmediate("AIR", 1, 0);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(1, 25);
+
+        cpu.step();
+
+        check(
+            "AIR zero immed",
+            s.getGPR(1) == 25,
+            "R1 should remain unchanged when immed = 0"
+        );
+    }
+
+    /**
+     * SIR basic:
+     * SIR R2,4 => R2 <- R2 - 4
+     */
+    private static void testSIRBasic() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeImmediate("SIR", 2, 4);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(2, 11);
+
+        cpu.step();
+
+        check(
+            "SIR basic",
+            s.getGPR(2) == 7,
+            "R2 should decrease by immediate value"
+        );
+    }
+
+    
+    /**
+     * SIR with immed = 0 should do nothing.
+     */
+    private static void testSIRZeroImmediate() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeImmediate("SIR", 0, 0);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(0, 18);
+
+        cpu.step();
+
+        check(
+            "SIR zero immed",
+            s.getGPR(0) == 18,
+            "R0 should remain unchanged when immed = 0"
+        );
+    }
+
+    /**
+     * SIR special note from ISA:
+     * if c(r) = 0, result becomes -(immed)
+     *
+     * Example:
+     * SIR R1,5 => R1 should become -5 (0xFFFB)
+     */
+    private static void testSIRFromZero() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeImmediate("SIR", 1, 5);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(1, 0);
+
+        cpu.step();
+
+        check(
+            "SIR from zero",
+            s.getGPR(1) == 0xFFFB,
+            "R1 should become -immed in 16-bit form"
+        );
+    }
+
+    // =====================================================
+    // Helpers
+    // =====================================================
+
+    /**
+     * Create a CPU for a test.
+     *
+     * @param mem   memory instance
+     * @param state machine state instance
+     * @return      connected CPU
+     */
+    private static CPU newCPU(Memory mem, MachineState state) {
+        return new CPU(mem, state);
+    }
+
+    /**
+     * Record and print PASS/FAIL result for one test.
+     *
+     * @param name      short test name
+     * @param ok        whether the test passed
+     * @param details   short human-readable description
+     */
+    private static void check(String name, boolean ok, String details) {
+        if (ok) {
+            passed++;
+            System.out.println("[PASS] " + name + " - " + details);
+        } else {
+            failed++;
+            System.out.println("[FAIL] " + name + " - " + details);
+        }
     }
 }
