@@ -42,7 +42,7 @@ public final class InstructionTests {
         runProcessorControlTests();
         runLoadStoreTests();
         runTransferTests();
-        runArithmeticImmediateTests();
+        runArithmeticLogicTests();
         printSummary();
     }
 
@@ -120,18 +120,25 @@ public final class InstructionTests {
     /**
      * Run arithmetic and immediate instruction tests.
      */
-    private static void runArithmeticImmediateTests() {
+    private static void runArithmeticLogicTests() {
         System.out.println("=====================================================");
-        System.out.println("Arithmetic / Immediate Tests");
+        System.out.println("Arithmetic / Logic Tests");
         System.out.println("=====================================================");
         testAMRDirect();
         testAMRIndexed();
+        testAMROverflow();
+
         testSMRDirect();
+        testSMRUnderflow();
+
         testAIRBasic();
         testAIRZeroImmediate();
+        testAIROverflow();
+
         testSIRBasic();
         testSIRZeroImmediate();
         testSIRFromZero();
+        testSIRUnderflow();
         System.out.println();
     }
 
@@ -851,7 +858,7 @@ public final class InstructionTests {
     }
 
     // =====================================================
-    // Arithmetic and Logical Tests
+    // Arithmetic / Logic Tests
     // =====================================================
 
     /**
@@ -906,6 +913,43 @@ public final class InstructionTests {
     }
 
     /**
+     * AMR overflow:
+     * Force overflow using a memory operand instead of an immediate operand.
+     * - R2 starts at 32760
+     * - MEM[20] contains 10
+     * - AMR R2,0,20 adds MEM[20] to R2
+     *
+     * Expected:
+     * - mathematical result = 32770
+     * - stored result wraps into 16 bits
+     * - overflow CC bit should be set
+     */
+    private static void testAMROverflow() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeBasic("AMR", 2, 0, 20);
+
+        mem.write(0, instr);
+        mem.write(20, 10);
+
+        s.setPC(0);
+        s.setGPR(2, 32760);
+        s.setCC(0);
+
+        cpu.step();
+
+        check(
+            "AMR overflow",
+            s.getGPR(2) == ((32760 + 10) & 0xFFFF)
+                && ((s.getCC() & 0b0001) != 0)   // overflow bit set
+                && ((s.getCC() & 0b0010) == 0),  // underflow bit clear
+            "AMR should set OVERFLOW when sum exceeds +32767"
+        );
+    }
+
+    /**
      * SMR direct:
      * SMR R3,0,12 => R3 <- R3 - MEM[12]
      */
@@ -927,6 +971,43 @@ public final class InstructionTests {
             "SMR direct",
             s.getGPR(3) == 13,
             "R3 should become R3 - MEM[12]"
+        );
+    }
+
+    /**
+     * SMR underflow:
+     * Force underflow using a memory operand.
+     * - R3 starts at 0x8008, which is -32760 in signed 16-bit form
+     * - MEM[12] contains 20
+     * - SMR R3,0,12 subtracts MEM[12] from R3
+     *
+     * Expected:
+     * - mathematical result = -32780
+     * - stored result wraps into 16 bits
+     * - underflow CC bit should be set
+     */
+    private static void testSMRUnderflow() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeBasic("SMR", 3, 0, 12);
+
+        mem.write(0, instr);
+        mem.write(12, 20);
+
+        s.setPC(0);
+        s.setGPR(3, 0x8008);
+        s.setCC(0);
+
+        cpu.step();
+
+        check(
+            "SMR underflow",
+            s.getGPR(3) == ((0x8008 - 20) & 0xFFFF)
+                && ((s.getCC() & 0b0010) != 0)   // underflow bit set
+                && ((s.getCC() & 0b0001) == 0),  // overflow bit clear
+            "SMR should set UNDERFLOW when result goes below -32768"
         );
     }
 
@@ -974,6 +1055,42 @@ public final class InstructionTests {
             "AIR zero immed",
             s.getGPR(1) == 25,
             "R1 should remain unchanged when immed = 0"
+        );
+    }
+
+    /**
+     * AIR overflow:
+     * Force a signed 16-bit positive overflow.
+     * - R0 starts at 0x7FFF (32767), the maximum signed 16-bit value
+     * - AIR R0,1 adds 1
+     *
+     * Expected:
+     * - mathematical result = 32768
+     * - stored 16-bit result wraps to 0x8000
+     * - overflow CC bit should be set
+     * - underflow CC bit should remain clear
+     */
+    private static void testAIROverflow() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeImmediate("AIR", 0, 1);
+
+        mem.write(0, instr);
+
+        s.setPC(0);
+        s.setGPR(0, 0x7FFF);
+        s.setCC(0);
+
+        cpu.step();
+
+        check(
+            "AIR overflow",
+            s.getGPR(0) == 0x8000
+                && ((s.getCC() & 0b0001) != 0)   // overflow bit set
+                && ((s.getCC() & 0b0010) == 0),  // underflow bit clear
+            "Result should wrap to 0x8000 and set OVERFLOW"
         );
     }
 
@@ -1049,6 +1166,42 @@ public final class InstructionTests {
             "SIR from zero",
             s.getGPR(1) == 0xFFFB,
             "R1 should become -immed in 16-bit form"
+        );
+    }
+
+    /**
+     * SIR underflow:
+     * Force a signed 16-bit negative underflow.
+     * - R1 starts at 0x8000 (-32768), the minimum signed 16-bit value
+     * - SIR R1,1 subtracts 1
+     *
+     * Expected:
+     * - mathematical result = -32769
+     * - stored 16-bit result wraps to 0x7FFF
+     * - underflow CC bit should be set
+     * - overflow CC bit should remain clear
+     */
+    private static void testSIRUnderflow() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeImmediate("SIR", 1, 1);
+
+        mem.write(0, instr);
+
+        s.setPC(0);
+        s.setGPR(1, 0x8000);
+        s.setCC(0);
+
+        cpu.step();
+
+        check(
+            "SIR underflow",
+            s.getGPR(1) == 0x7FFF
+                && ((s.getCC() & 0b0010) != 0)   // underflow bit set
+                && ((s.getCC() & 0b0001) == 0),  // overflow bit clear
+            "Result should wrap to 0x7FFF and set UNDERFLOW"
         );
     }
 
