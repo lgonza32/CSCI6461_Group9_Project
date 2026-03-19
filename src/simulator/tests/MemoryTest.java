@@ -1,4 +1,6 @@
-package simulator.machine;
+package simulator.tests;
+
+import simulator.machine.Memory;
 
 /**
  * Test for Memory.java
