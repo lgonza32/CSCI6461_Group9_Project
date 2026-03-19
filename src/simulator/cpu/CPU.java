@@ -338,7 +338,89 @@ public final class CPU {
                 }
 
                 // -------------------------------------------------
-                // Index Register Load / Store
+                // Shift / Rotate INsstructions
+                // -------------------------------------------------
+
+                // SRC (octal 031 => decimal 25)
+                // Shift Register by Count
+                // - r     = target register
+                // - addr  = count
+                // - ind   = L/R bit (1 = left, 0 = right)
+                // - low bit of ix = A/L bit (1 = logical, 0 = arithmetic)
+                case 25 -> {
+                    int count = addr & 0x1F;
+                    int lr = ind & 0x1;          // 1 = left, 0 = right
+                    int al = ix & 0x1;           // 1 = logical, 0 = arithmetic
+                    int value = s.getGPR(r) & 0xFFFF;
+
+                    // 0 means no shift
+                    if (count == 0) {
+                        return "[STEP] SRC no-op (count = 0)\n";
+                    }
+
+                    // count as 0..15
+                    // masking with 0x0F keeps the operation inside that range
+                    count &= 0x0F;
+
+                    int result;
+
+                    if (lr == 1) {
+                        // Left shift: arithmetic and logical discard
+                        // shifted-out bits and fill low bits with zeros.
+                        result = (value << count) & 0xFFFF;
+                    } else {
+                        // Right shift:
+                        // logical  -> zero-fill using >>>
+                        // arithmetic -> sign-extend using signed >>
+                        if (al == 1) {
+                            result = (value >>> count) & 0xFFFF;
+                        } else {
+                            result = (toSigned16(value) >> count) & 0xFFFF;
+                        }
+                    }
+
+                    s.setGPR(r, result);
+
+                    return "[STEP] SRC R" + r + " -> " + Memory.toOct6(result) + "\n";
+                }
+
+                // RRC (octal 032 => decimal 26)
+                // Rotate Register by count
+                // - r     = target register
+                // - addr  = count
+                // - ind   = L/R bit (1 = left, 0 = right)
+                // - A/L is ignored for rotate in this implementation
+                case 26 -> {
+                    int count = addr & 0x1F;
+                    int lr = ind & 0x1;          // 1 = left, 0 = right
+                    int value = s.getGPR(r) & 0xFFFF;
+
+                    // 0 means no rotate
+                    if (count == 0) {
+                        return "[STEP] RRC no-op (count = 0)\n";
+                    }
+
+                    // rotating by 16 is equivalent to rotating by 0 on a 16 bit register
+                    count &= 0x0F;
+
+                    int result;
+                    if (count == 0) {
+                        result = value;
+                    } else if (lr == 1) {
+                        // rotate left on 16 bits
+                        result = ((value << count) | (value >>> (16 - count))) & 0xFFFF;
+                    } else {
+                        // rotate right on 16 bits
+                        result = ((value >>> count) | (value << (16 - count))) & 0xFFFF;
+                    }
+
+                    s.setGPR(r, result);
+
+                    return "[STEP] RRC R" + r + " -> " + Memory.toOct6(result) + "\n";
+                }
+
+                // -------------------------------------------------
+                // Index Register Load / Store INstructions
                 // -------------------------------------------------
 
                 // LDX (octal 041 => decimal 33): X[ix] <- MEM[EA_no_index]
@@ -394,10 +476,10 @@ public final class CPU {
                     long right = toSigned16(s.getGPR(ry));
                     long product = left * right;
 
-                    // Clear arithmetic overflow/underflow bits before updating.
+                    // clear arithmetic overflow/underflow bits before updating
                     clearArithmeticCC();
 
-                    // Set overflow if the signed product does not fit in 16 bits.
+                    // set overflow if the signed product does not fit in 16 bits
                     if (product > Short.MAX_VALUE || product < Short.MIN_VALUE) {
                         setCCBit(0, true);
                     }
@@ -431,7 +513,6 @@ public final class CPU {
 
                     int divisor = toSigned16(s.getGPR(ry));
 
-                    // Clear divide-by-zero bit before this operation.
                     setCCBit(2, false);
 
                     if (divisor == 0) {

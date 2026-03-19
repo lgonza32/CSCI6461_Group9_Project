@@ -44,6 +44,7 @@ public final class InstructionTests {
         runTransferTests();
         runArithmeticLogicTests();
         runRegisterToRegisterTests();
+        runShiftRotateTests();
         printSummary();
     }
 
@@ -164,6 +165,24 @@ public final class InstructionTests {
         testANDBasic();
         testORRBasic();
         testNOTBasic();
+        System.out.println();
+    }
+
+    /**
+     * Run shift and rotate instruction tests.
+     */
+    private static void runShiftRotateTests() {
+        System.out.println("=====================================================");
+        System.out.println("Shift / Rotate Tests");
+        System.out.println("=====================================================");
+        testSRCLeftLogical();
+        testSRCRightLogical();
+        testSRCRightArithmetic();
+        testSRCZeroCount();
+
+        testRRCLeft();
+        testRRCRight();
+        testRRCZeroCount();
         System.out.println();
     }
 
@@ -1510,6 +1529,195 @@ public final class InstructionTests {
             "NOT basic",
             s.getGPR(3) == ((~0x00F0) & 0xFFFF),
             "R3 should become bitwise NOT of original value"
+        );
+    }
+
+    // =====================================================
+    // Shift / Rotate Tests
+    // =====================================================
+
+    /**
+     * SRC left logical:
+     * SRC R3,3,1,1
+     *
+     * Example from ISA:
+     * if r3 = 0000 0000 0000 0110,
+     * shifting left by 3 yields 0000 0000 0011 0000.
+     */
+    private static void testSRCLeftLogical() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeShiftRotate("SRC", 3, 3, 1, 1);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(3, 0x0006);
+
+        cpu.step();
+
+        check(
+            "SRC left logical",
+            s.getGPR(3) == 0x0030,
+            "R3 should shift left by 3"
+        );
+    }
+
+    /**
+     * SRC right logical:
+     * shift zeros into the high bits.
+     *
+     * Example:
+     * 0x8006 logically shifted right by 2 becomes 0x2001.
+     */
+    private static void testSRCRightLogical() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeShiftRotate("SRC", 1, 2, 0, 1);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(1, 0x8006);
+
+        cpu.step();
+
+        check(
+            "SRC right logical",
+            s.getGPR(1) == 0x2001,
+            "R1 should shift right logically by 2"
+        );
+    }
+
+    /**
+     * SRC right arithmetic:
+     * sign bit should be replicated on each right shift.
+     *
+     * ISA example:
+     * starting from 1 000 000 000 000 110 and shifting right arithmetically
+     * by 2 keeps the sign bit at 1. :contentReference[oaicite:2]{index=2}
+     */
+    private static void testSRCRightArithmetic() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeShiftRotate("SRC", 1, 2, 0, 0);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(1, 0x8006);
+
+        cpu.step();
+
+        check(
+            "SRC right arithmetic",
+            s.getGPR(1) == 0xE001,
+            "R1 should shift right arithmetically by 2 with sign extension"
+        );
+    }
+
+    /**
+     * SRC count = 0:
+     * ISA says no shift occurs.
+     */
+    private static void testSRCZeroCount() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeShiftRotate("SRC", 0, 0, 1, 1);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(0, 0x1234);
+
+        cpu.step();
+
+        check(
+            "SRC zero count",
+            s.getGPR(0) == 0x1234,
+            "R0 should remain unchanged when count is 0"
+        );
+    }
+
+    /**
+     * RRC left:
+     * rotate left by 1 on 16 bits.
+     *
+     * Example:
+     * 0x8001 rotated left by 1 becomes 0x0003.
+     */
+    private static void testRRCLeft() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeShiftRotate("RRC", 2, 1, 1, 1);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(2, 0x8001);
+
+        cpu.step();
+
+        check(
+            "RRC left",
+            s.getGPR(2) == 0x0003,
+            "R2 should rotate left by 1"
+        );
+    }
+
+    /**
+     * RRC right:
+     * rotate right by 1 on 16 bits.
+     *
+     * Example:
+     * 0x8001 rotated right by 1 becomes 0xC000.
+     */
+    private static void testRRCRight() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeShiftRotate("RRC", 2, 1, 0, 1);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(2, 0x8001);
+
+        cpu.step();
+
+        check(
+            "RRC right",
+            s.getGPR(2) == 0xC000,
+            "R2 should rotate right by 1"
+        );
+    }
+
+    /**
+     * RRC count = 0:
+     * ISA says no rotate occurs.
+     */
+    private static void testRRCZeroCount() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeShiftRotate("RRC", 3, 0, 0, 1);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(3, 0xAAAA);
+
+        cpu.step();
+
+        check(
+            "RRC zero count",
+            s.getGPR(3) == 0xAAAA,
+            "R3 should remain unchanged when count is 0"
         );
     }
 
