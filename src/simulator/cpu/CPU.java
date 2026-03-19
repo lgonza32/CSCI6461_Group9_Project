@@ -166,6 +166,10 @@ public final class CPU {
         }
     }
 
+    /* ==========================
+     * Helpers
+     * ========================== */
+
     /**
      * Compute Effective Address for BASIC format instructions that support indexing.
      *
