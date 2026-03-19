@@ -43,6 +43,7 @@ public final class InstructionTests {
         runLoadStoreTests();
         runTransferTests();
         runArithmeticLogicTests();
+        runRegisterToRegisterTests();
         printSummary();
     }
 
@@ -139,6 +140,30 @@ public final class InstructionTests {
         testSIRZeroImmediate();
         testSIRFromZero();
         testSIRUnderflow();
+        System.out.println();
+    }
+
+    /**
+     * Run register to register instruction tests.
+     */
+    private static void runRegisterToRegisterTests() {
+        System.out.println("=====================================================");
+        System.out.println("Register to Register / Mult-Div / Logical Instructions");
+        System.out.println("=====================================================");
+        testMLTBasic();
+        testMLTOverflow();
+        testMLTInvalidPair();
+
+        testDVDBasic();
+        testDVDByZero();
+        testDVDInvalidPair();
+
+        testTRREqual();
+        testTRRNotEqual();
+
+        testANDBasic();
+        testORRBasic();
+        testNOTBasic();
         System.out.println();
     }
 
@@ -1202,6 +1227,289 @@ public final class InstructionTests {
                 && ((s.getCC() & 0b0010) != 0)   // underflow bit set
                 && ((s.getCC() & 0b0001) == 0),  // overflow bit clear
             "Result should wrap to 0x7FFF and set UNDERFLOW"
+        );
+    }
+
+    // =====================================================
+    // Register to Register / Mult-Div / Logical Instructions
+    // =====================================================
+
+    /**
+     * MLT basic:
+     * Multiply 3 * 4 using R0 and R2.
+     */
+    private static void testMLTBasic() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeRegReg("MLT", 0, 2);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(0, 3);
+        s.setGPR(2, 4);
+        s.setCC(0);
+
+        cpu.step();
+
+        check(
+            "MLT basic",
+            s.getGPR(0) == 0 && s.getGPR(1) == 12,
+            "R0:R1 should contain product 12"
+        );
+    }
+
+    /**
+     * MLT overflow:
+     * Force a product too large for signed 16 bits.
+     *
+     * Expected:
+     * - overflow CC bit set
+     */
+    private static void testMLTOverflow() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeRegReg("MLT", 0, 2);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(0, 300);
+        s.setGPR(2, 300);
+        s.setCC(0);
+
+        cpu.step();
+
+        check(
+            "MLT overflow",
+            (s.getCC() & 0b0001) != 0,
+            "MLT should set OVERFLOW when product exceeds signed 16-bit range"
+        );
+    }
+
+    /**
+     * MLT invalid register pair:
+     * rx and ry must be 0 or 2.
+     */
+    private static void testMLTInvalidPair() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeRegReg("MLT", 1, 2);
+
+        mem.write(0, instr);
+        s.setPC(0);
+
+        String log = cpu.step();
+
+        check(
+            "MLT invalid pair",
+            cpu.isHalted() && log.toLowerCase().contains("requires"),
+            "CPU should halt on invalid MLT register pair"
+        );
+    }
+
+    /**
+     * DVD basic:
+     * Divide 17 by 5 using R0 and R2.
+     */
+    private static void testDVDBasic() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeRegReg("DVD", 0, 2);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(0, 17);
+        s.setGPR(2, 5);
+        s.setCC(0);
+
+        cpu.step();
+
+        check(
+            "DVD basic",
+            s.getGPR(0) == 3 && s.getGPR(1) == 2,
+            "R0 should contain quotient and R1 should contain remainder"
+        );
+    }
+
+    /**
+     * DVD divide-by-zero:
+     * Should set DIVZERO CC bit and not crash.
+     */
+    private static void testDVDByZero() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeRegReg("DVD", 0, 2);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(0, 17);
+        s.setGPR(2, 0);
+        s.setCC(0);
+
+        cpu.step();
+
+        check(
+            "DVD divide by zero",
+            (s.getCC() & 0b0100) != 0,
+            "DVD should set DIVZERO flag when divisor is zero"
+        );
+    }
+
+    /**
+     * DVD invalid register pair:
+     * rx and ry must be 0 or 2.
+     */
+    private static void testDVDInvalidPair() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeRegReg("DVD", 3, 0);
+
+        mem.write(0, instr);
+        s.setPC(0);
+
+        String log = cpu.step();
+
+        check(
+            "DVD invalid pair",
+            cpu.isHalted() && log.toLowerCase().contains("requires"),
+            "CPU should halt on invalid DVD register pair"
+        );
+    }
+
+    /**
+     * TRR equal:
+     * If registers are equal, set equality CC bit.
+     */
+    private static void testTRREqual() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeRegReg("TRR", 0, 2);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(0, 25);
+        s.setGPR(2, 25);
+        s.setCC(0);
+
+        cpu.step();
+
+        check(
+            "TRR equal",
+            (s.getCC() & 0b1000) != 0,
+            "TRR should set equality flag when registers match"
+        );
+    }
+
+    /**
+     * TRR not equal:
+     * If registers differ, clear equality CC bit.
+     */
+    private static void testTRRNotEqual() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeRegReg("TRR", 0, 2);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(0, 25);
+        s.setGPR(2, 26);
+        s.setCC(0b1000);
+
+        cpu.step();
+
+        check(
+            "TRR not equal",
+            (s.getCC() & 0b1000) == 0,
+            "TRR should clear equality flag when registers differ"
+        );
+    }
+
+    /**
+     * AND basic:
+     * R0 <- R0 AND R2
+     */
+    private static void testANDBasic() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeRegReg("AND", 0, 2);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(0, 0b1100);
+        s.setGPR(2, 0b1010);
+
+        cpu.step();
+
+        check(
+            "AND basic",
+            s.getGPR(0) == 0b1000,
+            "R0 should become bitwise AND of R0 and R2"
+        );
+    }
+
+    /**
+     * ORR basic:
+     * R0 <- R0 OR R2
+     */
+    private static void testORRBasic() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeRegReg("ORR", 0, 2);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(0, 0b1100);
+        s.setGPR(2, 0b1010);
+
+        cpu.step();
+
+        check(
+            "ORR basic",
+            s.getGPR(0) == 0b1110,
+            "R0 should become bitwise OR of R0 and R2"
+        );
+    }
+
+    /**
+     * NOT basic:
+     * R3 <- NOT R3
+     */
+    private static void testNOTBasic() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeNot(3);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(3, 0x00F0);
+
+        cpu.step();
+
+        check(
+            "NOT basic",
+            s.getGPR(3) == ((~0x00F0) & 0xFFFF),
+            "R3 should become bitwise NOT of original value"
         );
     }
 

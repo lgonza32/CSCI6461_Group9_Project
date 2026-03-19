@@ -374,6 +374,135 @@ public final class CPU {
                 }
 
                 // -------------------------------------------------
+                // Register to Register / Mult-Div / Logical Instructions
+                // -------------------------------------------------
+
+                // MLT (octal 070 => decimal 56)
+                // rx, rx+1 <- c(rx) * c(ry)
+                // rx must be 0 or 2
+                // ry must be 0 or 2
+                case 56 -> {
+                    int rx = r;
+                    int ry = ix;
+
+                    if (!isValidRxRyPair(rx, ry)) {
+                        halted = true;
+                        return "[FAULT] MLT requires rx and ry to be 0 or 2.\n";
+                    }
+
+                    long left = toSigned16(s.getGPR(rx));
+                    long right = toSigned16(s.getGPR(ry));
+                    long product = left * right;
+
+                    // Clear arithmetic overflow/underflow bits before updating.
+                    clearArithmeticCC();
+
+                    // Set overflow if the signed product does not fit in 16 bits.
+                    if (product > Short.MAX_VALUE || product < Short.MIN_VALUE) {
+                        setCCBit(0, true);
+                    }
+
+                    // Store full 32-bit product across rx (high) and rx+1 (low).
+                    int high = (int) ((product >>> 16) & 0xFFFF);
+                    int low = (int) (product & 0xFFFF);
+
+                    s.setGPR(rx, high);
+                    s.setGPR(rx + 1, low);
+
+                    return "[STEP] MLT R" + rx + ",R" + ry
+                            + " -> high=" + Memory.toOct6(high)
+                            + " low=" + Memory.toOct6(low) + "\n";
+                }
+
+                // DVD (octal 071 => decimal 57)
+                // rx <- quotient
+                // rx+1 <- remainder
+                // rx must be 0 or 2
+                // ry must be 0 or 2
+                // if c(ry) = 0, set DIVZERO flag
+                case 57 -> {
+                    int rx = r;
+                    int ry = ix;
+
+                    if (!isValidRxRyPair(rx, ry)) {
+                        halted = true;
+                        return "[FAULT] DVD requires rx and ry to be 0 or 2.\n";
+                    }
+
+                    int divisor = toSigned16(s.getGPR(ry));
+
+                    // Clear divide-by-zero bit before this operation.
+                    setCCBit(2, false);
+
+                    if (divisor == 0) {
+                        setCCBit(2, true);
+                        return "[STEP] DVD divide by zero flag set.\n";
+                    }
+
+                    int dividend = toSigned16(s.getGPR(rx));
+                    int quotient = dividend / divisor;
+                    int remainder = dividend % divisor;
+
+                    s.setGPR(rx, quotient & 0xFFFF);
+                    s.setGPR(rx + 1, remainder & 0xFFFF);
+
+                    return "[STEP] DVD R" + rx + ",R" + ry
+                            + " -> quotient=" + Memory.toOct6(quotient & 0xFFFF)
+                            + " remainder=" + Memory.toOct6(remainder & 0xFFFF) + "\n";
+                }
+
+                // TRR (octal 072 => decimal 58)
+                // If c(rx) = c(ry), set EQUAL flag, else clear it
+                case 58 -> {
+                    int rx = r;
+                    int ry = ix;
+
+                    boolean equal = (s.getGPR(rx) & 0xFFFF) == (s.getGPR(ry) & 0xFFFF);
+                    setCCBit(3, equal);
+
+                    return "[STEP] TRR R" + rx + ",R" + ry
+                            + (equal ? " -> equal\n" : " -> not equal\n");
+                }
+
+                // AND (octal 073 => decimal 59)
+                // c(rx) <- c(rx) AND c(ry)
+                case 59 -> {
+                    int rx = r;
+                    int ry = ix;
+
+                    int result = (s.getGPR(rx) & s.getGPR(ry)) & 0xFFFF;
+                    s.setGPR(rx, result);
+
+                    return "[STEP] AND R" + rx + ",R" + ry
+                            + " -> " + Memory.toOct6(result) + "\n";
+                }
+
+                // ORR (octal 074 => decimal 60)
+                // c(rx) <- c(rx) OR c(ry)
+                case 60 -> {
+                    int rx = r;
+                    int ry = ix;
+
+                    int result = (s.getGPR(rx) | s.getGPR(ry)) & 0xFFFF;
+                    s.setGPR(rx, result);
+
+                    return "[STEP] ORR R" + rx + ",R" + ry
+                            + " -> " + Memory.toOct6(result) + "\n";
+                }
+
+                // NOT (octal 075 => decimal 61)
+                // c(rx) <- NOT c(rx)
+                case 61 -> {
+                    int rx = r;
+
+                    int result = (~s.getGPR(rx)) & 0xFFFF;
+                    s.setGPR(rx, result);
+
+                    return "[STEP] NOT R" + rx + " -> "
+                            + Memory.toOct6(result) + "\n";
+                }
+
+                // -------------------------------------------------
                 // Unsupported Opcode
                 // -------------------------------------------------
                 default -> {
@@ -543,5 +672,17 @@ public final class CPU {
         } else if (wideResult < Short.MIN_VALUE) {
             setCCBit(1, true); // underflow
         }
+    }
+
+    /**
+     * MLT and DVD require rx and ry to be register pair starts.
+     * Valid values are 0 or 2 only.
+     *
+     * @param rx first register
+     * @param ry second register
+     * @return true if both registers are valid pair starts
+     */
+    private boolean isValidRxRyPair(int rx, int ry) {
+        return (rx == 0 || rx == 2) && (ry == 0 || ry == 2);
     }
 }
