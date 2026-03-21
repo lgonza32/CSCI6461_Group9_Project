@@ -1,0 +1,137 @@
+Program 1 Test Cases
+
+Overview
+This document lists the main test cases used to verify Program1.asm.
+
+Current Program 1 behavior:
+1. Reads 20 signed integers from console input
+2. Stores those 20 integers in memory
+3. Reads 1 signed query integer
+4. Finds the stored value with the smallest absolute difference from the query
+5. Prints the query and the closest value
+6. Halts on invalid input and sets INVALIDFLAG
+
+How to run
+1. Assemble:
+   java -cp out part0_assembler.AssemblerMain src/programs/program1/Program1_Test#.asm
+
+2. Start the simulator:
+   java -cp out Main
+
+3. In the GUI:
+   - Click IPL
+   - Select txt/Program1_Test#_load.txt
+   - Paste one full test input into Console Input
+   - Click Run
+
+Memory locations used for verification
+
+NUMBERS page
+- Base address: decimal 480, octal 740
+- Stored numbers occupy:
+  - 740 through 763 octal
+
+WORK page
+Base address: decimal 520, octal 1010
+
+Important fields:
+- 1013 = QUERY
+- 1015 = BESTVAL
+- 1016 = BESTDIFF
+- 1024 = INVALIDFLAG
+
+Use Set -> MAR and then Load / Load+ in the GUI to inspect these values.
+
+Test Case 1: Exact positive match
+
+Input
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 7 
+
+Expected behavior
+- Program halts normally
+- Query is 7
+- Closest value is 7
+- Best difference is 0
+
+Expected WORK values
+- QUERY (1013) = 000007
+- BESTVAL (1015) = 000007
+- BESTDIFF (1016) = 000000
+
+Test Case 2: Non-exact positive match
+
+Input
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 
+
+Expected behavior
+- Program halts normally
+- Query is 21
+- Closest value is 20
+- Best difference is 1
+
+Expected WORK values
+- QUERY (1013) = octal for 21
+- BESTVAL (1015) = octal for 20
+- BESTDIFF (1016) = 000001
+
+Test Case 3: Negative query / signed input
+
+Input
+-3 5 -10 20 -1 7 8 9 -15 30 4 12 -8 16 2 -20 11 6 14 1 -7 
+
+Expected behavior
+- Program halts normally
+- Signed values are stored correctly
+- Query is -7
+- Closest value is -8
+- Best difference is 1
+
+Expected WORK values
+- QUERY (1013) = two's-complement value for -7
+- BESTVAL (1015) = two's-complement value for -8
+- BESTDIFF (1016) = 000001
+- INVALIDFLAG (1024) = 000000
+
+Test Case 4: Invalid character input
+
+Input
+1 2 A 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 7 
+
+Expected behavior
+- Program halts early
+- Invalid input is detected
+- INVALIDFLAG is set to 1
+
+Expected WORK values
+- INVALIDFLAG (1024) = 000001
+
+Test Case 5: Zero handling
+
+Input
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 0 
+
+Expected behavior
+- Program halts normally
+- Query is 0
+- Closest value is 0
+- Best difference is 0
+
+Expected WORK values
+- QUERY (1013) = 000000
+- BESTVAL (1015) = 000000
+- BESTDIFF (1016) = 000000
+
+Optional manual storage verification
+
+To verify that the 20 numbers were stored correctly:
+1. Set MAR to octal 740
+2. Click Load
+3. Use Load+ to walk through the 20 stored entries
+
+This checks the NUMBERS page directly.
+
+Notes
+- Input values must be separated by spaces.
+- The final query value must also be followed by a trailing space.
+- Negative values are stored in two's-complement form in memory.
+- Printer output may be minimal depending on the current formatting version of Program1.asm.

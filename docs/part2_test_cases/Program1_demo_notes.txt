@@ -1,0 +1,110 @@
+Program 1 Demo Notes
+
+Goal
+Program1.asm demonstrates the main Program 1 workflow for the simulator:
+
+1. Read 20 signed integers from console input
+2. Store them in memory
+3. Read 1 signed query integer
+4. Search for the closest stored value
+5. Print the query and closest value
+6. Halt on invalid input
+
+Files
+- Source file: src/programs/program1/Program1.asm
+- Assembler output:
+  - txt/Program1_listing.txt
+  - txt/Program1_load.txt
+
+Build and run
+
+1) Assemble Program 1
+From the project root:
+java -cp out part0_assembler.AssemblerMain src/programs/program1/Program1.asm
+
+2) Start the simulator GUI
+java -cp out Main
+
+3) Load the program
+In the simulator:
+- Click IPL
+- Select txt/Program1_load.txt
+
+4) Run a test
+- Paste a full input line into Console Input
+- Click Run
+
+Recommended demo sequence
+
+Demo 1: Exact positive match
+Use:
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 7 
+
+Show:
+- the program halts normally
+- QUERY is 7
+- BESTVAL is 7
+- BESTDIFF is 0
+
+Demo 2: Non-exact positive match
+Use:
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 
+
+Show:
+- the program halts normally
+- QUERY is 21
+- BESTVAL is 20
+- BESTDIFF is 1
+
+Demo 3: Signed input
+Use:
+-3 5 -10 20 -1 7 8 9 -15 30 4 12 -8 16 2 -20 11 6 14 1 -7 
+
+Show:
+- negative values are accepted
+- QUERY is -7
+- BESTVAL is -8
+- BESTDIFF is 1
+
+Demo 4: Invalid input
+Use:
+1 2 A 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 7 
+
+Show:
+- the program halts early
+- INVALIDFLAG becomes 1
+
+How to inspect memory in the GUI
+
+Important WORK addresses
+Set MAR in octal, then use Load:
+- 1013 = QUERY
+- 1015 = BESTVAL
+- 1016 = BESTDIFF
+- 1024 = INVALIDFLAG
+
+NUMBERS page
+- Base = 740 octal
+- The 20 stored integers occupy 740 through 763
+
+Use Load+ to walk through consecutive memory locations.
+
+Parser behavior
+- Handles signed integers
+- Uses a space as the token delimiter
+- Stops and sets INVALIDFLAG on bad input
+
+Storage behavior
+- First 20 values go into the NUMBERS page
+- Query goes into the WORK page
+
+Search behavior
+- Computes absolute difference
+- Tracks the closest stored value
+- Updates BESTVAL and BESTDIFF
+
+Notes
+- Every input token must be separated by a space.
+- The final query should also end with a trailing space.
+- Negative values appear in memory using two's-complement representation.
+- Current printer formatting may be minimal, but the core search and verification values can always be confirmed through memory inspection.
