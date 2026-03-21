@@ -1,12 +1,13 @@
 ; =========================================================
 ; Program1.asm
 ;
-; Behavior:
-; 1) Read 20 signed integers from console input
-; 2) Store those 20 integers into the NUMBERS page
-; 3) Read one signed query integer
-; 4) Find the stored value with the smallest absolute difference
-; 5) Print the query value and the closest stored value
+; Flow:
+; 1. Read 20 signed integers from console input
+; 2. Store those 20 integers into the NUMBERS page
+; 3. Read one signed query integer
+; 4. Find the stored value with the smallest absolute difference
+; 5. Print the query value and the closest stored value
+; 6. Halt on invalid input
 ;
 ; Error handling:
 ; - If a non-digit character appears inside a number token,
@@ -135,37 +136,37 @@
 000145  002411  PARSE_LOOP1: LDR 1,0,SPACECHAR
 000146  142000  IN 0,0 ;Read one character from console input
 000147  164100  TRR 0,1 ;Compare input character with SPACE delimiter
-000150  025730  JCC 3,3,TO_PARSE3_FINISH-PARSE1
+000150  025731  JCC 3,3,TO_PARSE3_FINISH-PARSE1
              
              ; Input echo is disabled in the final flow so the printer only shows
              ; final result output, not the raw typed input stream.
-             ; OUT 0,1           
+000151  144001  OUT 0,1
 
              ; save original character
-000151  004215  STR 0,2,TEMPCHAR-WORK
+000152  004215  STR 0,2,TEMPCHAR-WORK
 
              ; A leading '-' is allowed only if:
              ; - no digit has been seen yet
              ; - NEGFLAG is still 0
-000152  002616  LDR 1,2,HASDIGIT-WORK
-000153  022726  JNE 1,3,TO_PARSE2_VALIDATE-PARSE1
-000154  002613  LDR 1,2,NEGFLAG-WORK
-000155  022726  JNE 1,3,TO_PARSE2_VALIDATE-PARSE1
-000156  002215  LDR 0,2,TEMPCHAR-WORK
-000157  002414  LDR 1,0,MINUSCHAR
-000160  164100  TRR 0,1
-000161  025723  JCC 3,3,HANDLE_MINUS-PARSE1
-000162  026326  JMA 3,TO_PARSE2_VALIDATE-PARSE1
+000153  002616  LDR 1,2,HASDIGIT-WORK
+000154  022727  JNE 1,3,TO_PARSE2_VALIDATE-PARSE1
+000155  002613  LDR 1,2,NEGFLAG-WORK
+000156  022727  JNE 1,3,TO_PARSE2_VALIDATE-PARSE1
+000157  002215  LDR 0,2,TEMPCHAR-WORK
+000160  002414  LDR 1,0,MINUSCHAR
+000161  164100  TRR 0,1
+000162  025724  JCC 3,3,HANDLE_MINUS-PARSE1
+000163  026327  JMA 3,TO_PARSE2_VALIDATE-PARSE1
 
-000163  002006  HANDLE_MINUS: LDR 0,0,ONE
-000164  004213  STR 0,2,NEGFLAG-WORK
-000165  026305  JMA 3,PARSE_LOOP1-PARSE1
+000164  002006  HANDLE_MINUS: LDR 0,0,ONE
+000165  004213  STR 0,2,NEGFLAG-WORK
+000166  026305  JMA 3,PARSE_LOOP1-PARSE1
 
-000166  102321  TO_PARSE2_VALIDATE: LDX 3,PARSE2PTR
-000167  026300  JMA 3,0
+000167  102321  TO_PARSE2_VALIDATE: LDX 3,PARSE2PTR
+000170  026300  JMA 3,0
 
-000170  102322  TO_PARSE3_FINISH: LDX 3,PARSE3PTR
-000171  026300  JMA 3,0
+000171  102322  TO_PARSE3_FINISH: LDX 3,PARSE3PTR
+000172  026300  JMA 3,0
 
 ; =========================================================
 ; PARSER PAGE 2

@@ -1920,6 +1920,15 @@ public final class InstructionTests {
         return new CPU(cache, s);
     }
 
+    /**
+     * Overloaded newCPU for I/O tests that need custom input/output handlers.
+     * 
+     * @param mem           backing memory for the test
+     * @param s             machine state for the test
+     * @param inputReader   function to read input values for IN instruction
+     * @param outputWriter  function to handle output values from OUT instruction
+     * @return              CPU wired to a fresh cache
+     */
     private static CPU newCPU(Memory mem, MachineState s,
                             IntSupplier inputReader,
                             IntConsumer outputWriter) {

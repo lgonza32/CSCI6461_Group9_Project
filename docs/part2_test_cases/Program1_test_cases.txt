@@ -22,6 +22,7 @@ How to run
    - Click IPL
    - Select txt/Program1_Test#_load.txt
    - Paste one full test input into Console Input
+   * Make sure you copy and paste the space after the last number
    - Click Run
 
 Memory locations used for verification

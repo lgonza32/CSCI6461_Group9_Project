@@ -140,7 +140,7 @@ PARSE_LOOP1: LDR 1,0,SPACECHAR
              
              ; Input echo is disabled in the final flow so the printer only shows
              ; final result output, not the raw typed input stream.
-             ; OUT 0,1           
+              OUT 0,1           
 
              ; save original character
              STR 0,2,TEMPCHAR-WORK
