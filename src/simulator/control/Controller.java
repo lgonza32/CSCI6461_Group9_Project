@@ -42,6 +42,7 @@ public final class Controller {
     private final CPU cpu;
     private static final int RUN_DELAY_MS = 50; // delay in ms between steps in run mode
     private Timer runTimer;
+    private final Runnable clearPrinterOutput;
 
     /**
      * Cointroller construct that connects the simulator core to the GUI.
@@ -76,7 +77,8 @@ public final class Controller {
             Runnable refreshUI,
             Supplier<String> getConsoleInputText,
             Consumer<String> setConsoleInputText,
-            Consumer<String> appendPrinterOutput) {
+            Consumer<String> appendPrinterOutput,
+            Runnable clearPrinterOutput) {
 
         this.parent = parent;
         this.log = log;
@@ -86,6 +88,7 @@ public final class Controller {
         this.getConsoleInputText = getConsoleInputText;
         this.setConsoleInputText = setConsoleInputText;
         this.appendPrinterOutput = appendPrinterOutput;
+        this.clearPrinterOutput = clearPrinterOutput;
 
         // start from a clean machine state
         memory.clear();
@@ -365,8 +368,10 @@ public final class Controller {
         memory.clear();
         state.clear();
         setCacheText.accept("");
+        clearPrinterOutput.run();
+        setConsoleInputText.accept("");
         cpu.reset();
-        log.accept("[RESET] Cleared registers and memory.\n");
+        log.accept("[RESET] Cleared registers, memory, and printer output.\n");
         refreshUI.run();
     }
 

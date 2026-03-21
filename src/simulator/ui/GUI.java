@@ -50,7 +50,8 @@ public final class GUI extends JFrame {
                 this::refreshFromController,
                 this::getConsoleInputText,
                 this::setConsoleInputText,
-                this::appendPrinterOutput
+                this::appendPrinterOutput,
+                this::clearPrinterOutput
         );
 
         // start with an empty printer output area so OUT instructions
