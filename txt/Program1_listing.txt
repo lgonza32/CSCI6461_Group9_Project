@@ -2,24 +2,33 @@
 ; Program1.asm
 ;
 ; Behavior:
-; 1) Read 20 signed integers separated by spaces
-; 2) Store them in memory
-; 3) Read one signed integer query separated by space
-; 4) Find the closest stored value
-; 5) Store query / best value / best diff in WORK page
+; 1) Read 20 signed integers from console input
+; 2) Store those 20 integers into the NUMBERS page
+; 3) Read one signed query integer
+; 4) Find the stored value with the smallest absolute difference
+; 5) Print the query value and the closest stored value
 ;
-; Current limitations:
-; - On invalid input, program sets INVALIDFLAG and halts
-; - Final formatted output is not implemented yet
+; Error handling:
+; - If a non-digit character appears inside a number token,
+;   INVALIDFLAG is set and the program halts.
+;
+; Implementation notes:
+; - Uses base-address indexing because the instruction Address
+;   field is only 5 bits.
+; - X1 is used as the moving pointer into the NUMBERS page.
+; - X2 is the base pointer for the WORK page.
+; - X3 is used as the active code-page base for jumps between
+;   parser, search, result, and print pages.
 ; =========================================================
 
                 LOC 0
 
-000000  102115  BOOT: LDX 1,NUMBASEPTR ;X1 <- numbers page base
-000001  102216  LDX 2,WORKBASEPTR ;X2 <- work page base
-000002  102317  LDX 3,CODE1PTR ;X3 <- main code page base
+000000  102115  BOOT: LDX 1,NUMBASEPTR ;Load X1 with base address of NUMBERS page
+000001  102216  LDX 2,WORKBASEPTR ;Load X2 with base address of WORK page
+000002  102317  LDX 3,CODE1PTR ;Load X3 with base address of main code page
 
-            ; mirror current X1 into work page so we can update/reload it
+            ; Save the current X1 value into WORK[CURX1] so the program
+            ; can increment and reload the number-array pointer through memory.
 000003  104172  STX 1,X1CURPTR,1
 
             ; jump into main code page base
@@ -59,12 +68,12 @@
 000100  002010  CODE1: LDR 0,0,TWENTY
 000101  004200  STR 0,2,0 ;WORK[0] = COUNT = 20
 
-000102  002005  READ20CALL: LDR 0,0,ZERO
-000103  004201  STR 0,2,MODE-WORK ;MODE = 0 => list input
-000104  102320  LDX 3,PARSEPTR
+000102  002005  READ20CALL: LDR 0,0,ZERO ;MODE = 0 means "reading one of the 20 list values"
+000103  004201  STR 0,2,MODE-WORK ;Switch X3 to parser page base
+000104  102320  LDX 3,PARSEPTR ;Enter parser
 000105  026300  JMA 3,0 ;jump to parser page base
 
-000106  002202  RET_PARSE20: LDR 0,2,CURVAL-WORK ;store parsed value into MEM[X1+0]
+000106  002202  RET_PARSE20: LDR 0,2,CURVAL-WORK ;Store it into the current NUMBERS slot pointed to by X1
 000107  004100  STR 0,1,0
 
              ; increment X1 properly:
@@ -106,10 +115,14 @@
 000134  102323  LDX 3,SEARCH1PTR
 000135  026300  JMA 3,0
 
-
 ; =========================================================
 ; PARSER PAGE 1
-; Input loop / minus handling / route to validation or finish
+; Responsibilities:
+; - initialize parser state
+; - read one character at a time
+; - detect token termination on SPACE
+; - handle optional leading '-'
+; - dispatch either to digit validation or to parser finish
 ; =========================================================
 
                 LOC 96
@@ -120,16 +133,20 @@
 000144  004216  STR 0,2,HASDIGIT-WORK
 
 000145  002411  PARSE_LOOP1: LDR 1,0,SPACECHAR
-000146  142000  IN 0,0
-000147  164100  TRR 0,1
+000146  142000  IN 0,0 ;Read one character from console input
+000147  164100  TRR 0,1 ;Compare input character with SPACE delimiter
 000150  025730  JCC 3,3,TO_PARSE3_FINISH-PARSE1
-             ; OUT 0,1           ; disable input echo for final Program 1 flow
+             
+             ; Input echo is disabled in the final flow so the printer only shows
+             ; final result output, not the raw typed input stream.
+             ; OUT 0,1           
 
              ; save original character
 000151  004215  STR 0,2,TEMPCHAR-WORK
 
-             ; optional leading '-'
-             ; only allowed if no digit yet and NEGFLAG == 0
+             ; A leading '-' is allowed only if:
+             ; - no digit has been seen yet
+             ; - NEGFLAG is still 0
 000152  002616  LDR 1,2,HASDIGIT-WORK
 000153  022726  JNE 1,3,TO_PARSE2_VALIDATE-PARSE1
 000154  002613  LDR 1,2,NEGFLAG-WORK
@@ -152,7 +169,10 @@
 
 ; =========================================================
 ; PARSER PAGE 2
-; Digit validation and accumulation
+; Responsibilities:
+; - validate that the current character is between '0' and '9'
+; - convert ASCII digit to numeric digit
+; - accumulate CURVAL = CURVAL * 10 + DIGIT
 ; =========================================================
 
                 LOC 128
@@ -174,8 +194,9 @@
 000214  026326  JMA 3,TO_PARSE3_INVALID-PARSE2
 
 000215  002406  ACCUMULATE: LDR 1,0,ONE
-000216  004616  STR 1,2,HASDIGIT-WORK
+000216  004616  STR 1,2,HASDIGIT-WORK ;Record that at least one valid digit has been seen
 
+             ; Decimal accumulation step:
              ; CURVAL = CURVAL * 10 + DIGIT
 000217  003007  LDR 2,0,TEN
 000220  002202  LDR 0,2,CURVAL-WORK
@@ -191,7 +212,11 @@
 
 ; =========================================================
 ; PARSER PAGE 3
-; Finish / sign apply / return / invalid halt
+; Responsibilities:
+; - reject empty tokens or a lone '-'
+; - apply the negative sign if NEGFLAG is set
+; - return either to list-input mode or query-input mode
+; - halt on invalid input
 ; =========================================================
 
                 LOC 160
@@ -211,8 +236,8 @@
 000252  026320  JMA 3,RET_TO_QUERY-PARSE3
 
 000253  002006  PARSE_INVALID3: LDR 0,0,ONE
-000254  004214  STR 0,2,INVALIDFLAG-WORK
-000255  000000  HLT
+000254  004214  STR 0,2,INVALIDFLAG-WORK ;Record that invalid input was seen
+000255  000000  HLT ;Stop execution immediately on bad input
 
 000256  102317  RET_TO_LIST: LDX 3,CODE1PTR
 000257  026306  JMA 3,RET_PARSE20-CODE1
@@ -222,7 +247,10 @@
 
 ; =========================================================
 ; SEARCH INIT PAGE
-; Initializes best value / best diff, then jumps to loop page
+; Responsibilities:
+; - initialize BESTVAL using the first stored number
+; - initialize BESTDIFF as abs(first - query)
+; - prepare SEARCHCOUNT for scanning the remaining 19 numbers
 ; =========================================================
 
                 LOC 192
@@ -268,7 +296,10 @@
 
 ; =========================================================
 ; SEARCH LOOP PAGE
-; Scans remaining 19 numbers and updates BESTVAL/BESTDIFF
+; Responsibilities:
+; - scan each remaining stored number
+; - compute abs(candidate - query)
+; - update BESTVAL and BESTDIFF if the new candidate is closer
 ; =========================================================
 
                 LOC 224
@@ -294,9 +325,10 @@
 
 000354  002210  COMPARE: LDR 0,2,TEMPDIFF-WORK
 000355  012206  SMR 0,2,BESTDIFF-WORK
-000356  036323  JGE 0,3,NOUPDATE-SEARCHLPAGE
+000356  036323  JGE 0,3,NOUPDATE-SEARCHLPAGE ;If tempdiff >= bestdiff, keep current best
 
-             ; update best diff and best value
+             ; Found a closer value:
+             ; update both BESTDIFF and BESTVAL
 000357  002210  LDR 0,2,TEMPDIFF-WORK
 000360  004206  STR 0,2,BESTDIFF-WORK
 000361  002211  LDR 0,2,CANDVAL-WORK
@@ -320,11 +352,11 @@
 
 ; =========================================================
 ; RESULT PAGE
-; Prints QUERY first, then a space, then BESTVAL.
-;
-; PRINTMODE:
-; 0 = currently printing QUERY
-; 1 = currently printing BESTVAL
+; Responsibilities:
+; - print QUERY first
+; - print a separator space
+; - print BESTVAL second
+; - halt after final output completes
 ; =========================================================
 
                 LOC 256
@@ -334,6 +366,7 @@
 000402  002011  LDR 0,0,SPACECHAR
 000403  144001  OUT 0,1
 
+                 ; Move QUERY into PRINTVAL so the print routine can output it
 000404  002203  LDR 0,2,QUERY-WORK
 000405  004217  STR 0,2,PRINTVAL-WORK
 
@@ -390,35 +423,34 @@
 000763  000000  Data 0
 
                 LOC 520
-001010  000000  WORK: Data 0 ;COUNT
-001011  000000  MODE: Data 0 ;0=list, 1=query
-001012  000000  CURVAL: Data 0 ;parsed value
-001013  000000  QUERY: Data 0 ;query value
-001014  000000  SEARCHCOUNT: Data 0
-001015  000000  BESTVAL: Data 0
-001016  000000  BESTDIFF: Data 0
-001017  000000  DIGIT: Data 0
-001020  000000  TEMPDIFF: Data 0
-001021  000000  CANDVAL: Data 0
-001022  000000  CURX1: Data 0 ;current X1 mirror (absolute address)
-001023  000000  NEGFLAG: Data 0 ;0=positive, 1=negative
-001024  000000  INVALIDFLAG: Data 0 ;0=ok, 1=bad input
-001025  000000  TEMPCHAR: Data 0 ;saved raw input char
-001026  000000  HASDIGIT: Data 0 ;0=no digit yet, 1=at least one digit
-001027  000000  PRINTVAL: Data 0 ;value currently being printed
-001030  000000  DIGCOUNT: Data 0 ;number of digits stored in buffer
-001031  000000  PRINTMODE: Data 0 ;0=query, 1=best
-001032  000000  XBUF: Data 0 ;current print buffer pointer mirror
+001010  000000  WORK: Data 0 ;[0] COUNT: numbers remaining to read
+001011  000000  MODE: Data 0 ;[1] MODE: 0=list input, 1=query input
+001012  000000  CURVAL: Data 0 ;[2] CURVAL: current parsed integer
+001013  000000  QUERY: Data 0 ;[3] QUERY: final query value
+001014  000000  SEARCHCOUNT: Data 0 ;[4] SEARCHCOUNT: numbers remaining in search loop
+001015  000000  BESTVAL: Data 0 ;[5] BESTVAL: closest stored value found so far
+001016  000000  BESTDIFF: Data 0 ;[6] BESTDIFF: smallest absolute difference so far
+001017  000000  DIGIT: Data 0 ;[7] DIGIT: current numeric digit during parsing
+001020  000000  TEMPDIFF: Data 0 ;[8] TEMPDIFF: temporary absolute difference
+001021  000000  CANDVAL: Data 0 ;[9] CANDVAL: current candidate value in search loop
+001022  000000  CURX1: Data 0 ;[10] CURX1: saved current X1 pointer value
+001023  000000  NEGFLAG: Data 0 ;[11] NEGFLAG: 1 if current token is negative
+001024  000000  INVALIDFLAG: Data 0 ;[12] INVALIDFLAG: 1 if parser sees invalid input
+001025  000000  TEMPCHAR: Data 0 ;[13] TEMPCHAR: raw input character being processed
+001026  000000  HASDIGIT: Data 0 ;[14] HASDIGIT: 1 once at least one digit is accepted
+001027  000000  PRINTVAL: Data 0 ;[15] PRINTVAL: value currently being printed
+001030  000000  DIGCOUNT: Data 0 ;[16] DIGCOUNT: number of digits buffered for output
+001031  000000  PRINTMODE: Data 0 ;[17] PRINTMODE: 0=query, 1=best value
+001032  000000  XBUF: Data 0 ;[18] XBUF: saved current print-buffer pointer
 
 ; =========================================================
 ; PRINT SIGNED INT PAGE 1
-;
-; Full multi-digit print routine:
-; - prints 0 correctly
-; - prints a leading '-' for negatives
-; - extracts decimal digits using DVD by 10
-; - stores digits into PRINTBUF from right to left
-; - then jumps to page 2 to output the buffer in forward order
+; Responsibilities:
+; - handle sign
+; - special-case zero
+; - repeatedly divide by 10
+; - store digits right-to-left into PRINTBUF
+; - transfer control to page 2 for forward-order output
 ; =========================================================
 
                 LOC 288
@@ -487,12 +519,15 @@
                ; Jump to page 2 to print buffered digits
 000504  102327  LDX 3,PRINT2PTR
 000505  026304  JMA 3,OUTPUT_LOOP-PRINTPAGE2
+                
+    ; At this point X1 sits one slot before the first digit.
+    ; Move it right once so page 2 starts output at the first stored digit.
 
 ; =========================================================
 ; PRINT SIGNED INT PAGE 2
-;
-; Outputs buffered digits left-to-right, then returns to
-; either RET_AFTER_QUERY or RET_AFTER_BEST depending on PRINTMODE.
+; Responsibilities:
+; - output buffered digits from left to right
+; - return to RESULTPAGE after printing QUERY or BESTVAL
 ; =========================================================
 
                 LOC 416
@@ -503,7 +538,7 @@
 000643  026321  JMA 3,PRINT_RETURN-PRINTPAGE2
 
 000644  002220  OUTPUT_LOOP: LDR 0,2,DIGCOUNT-WORK
-000645  020321  JZ 0,3,PRINT_RETURN-PRINTPAGE2
+000645  020321  JZ 0,3,PRINT_RETURN-PRINTPAGE2 ;Stop when all buffered digits are printed
 
                ; Output the current buffered digit
 000646  002100  LDR 0,1,0
