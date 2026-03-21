@@ -62,6 +62,10 @@ public final class CPU {
         halted = false;
     }
 
+    public void halt() {
+        halted = true;
+    }
+
     /**
      * Execute one full instruction step:
      *  1) FETCH (MAR<-PC, MBR<-MEM[MAR], IR<-MBR, PC++)
