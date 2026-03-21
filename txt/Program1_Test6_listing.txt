@@ -1,0 +1,31 @@
+; Program1_Test6.asm
+; Read a positive integer until a space delimiter.
+; Assumes all non-space characters are digits.
+
+                LOC 0
+
+000000  002420  LDR 1,0,SPACE ;R1 <- ASCII space delimiter
+000001  003021  LDR 2,0,TEN ;R2 <- 10
+
+000002  142000  LOOP: IN 0,0 ;read one character into R0
+000003  164100  TRR 0,1 ;compare char with space
+000004  025415  JCC 3,0,DONE ;if equal, stop
+000005  144001  OUT 0,1 ;echo the digit character
+
+000006  012017  SMR 0,0,ZEROCHAR ;convert ASCII digit to numeric digit
+000007  004022  STR 0,0,DIGIT ;save digit temporarily
+
+000010  002016  LDR 0,0,CURRENT ;R0 <- current accumulated value
+000011  160200  MLT 0,2 ;R0:R1 <- current * 10, low word goes to R1
+000012  010422  AMR 1,0,DIGIT ;R1 <- (current * 10) + digit
+000013  004416  STR 1,0,CURRENT ;save updated current value
+
+000014  026002  JMA 0,LOOP ;repeat
+
+000015  000000  DONE: HLT
+
+000016  000000  CURRENT: Data 0 ;final accumulated value
+000017  000060  ZEROCHAR: Data 48 ;ASCII '0'
+000020  000040  SPACE: Data 32 ;ASCII space delimiter
+000021  000012  TEN: Data 10
+000022  000000  DIGIT: Data 0 ;temporary digit storage

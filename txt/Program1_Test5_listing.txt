@@ -1,0 +1,30 @@
+; Program1_Test5.asm
+; Read exactly two digit characters, convert them, and assemble a 2-digit integer.
+; Example: input 4 then 2 -> store numeric 42 in RESULT.
+
+                LOC 0
+
+000000  142000  IN 0,0 ;read first digit char
+000001  144001  OUT 0,1 ;echo first digit
+000002  012017  SMR 0,0,ZEROCHAR ;convert ASCII digit to numeric value
+000003  004021  STR 0,0,FIRSTDIGIT ;save first numeric digit
+
+000004  142000  IN 0,0 ;read second digit char
+000005  144001  OUT 0,1 ;echo second digit
+000006  012017  SMR 0,0,ZEROCHAR ;convert ASCII digit to numeric value
+000007  004022  STR 0,0,SECONDDIGIT ;save second numeric digit
+
+000010  003020  LDR 2,0,TEN ;R2 <- 10
+000011  002021  LDR 0,0,FIRSTDIGIT ;R0 <- first digit
+000012  160200  MLT 0,2 ;R0:R1 <- firstDigit * 10
+                                ; low result is now in R1
+
+000013  010422  AMR 1,0,SECONDDIGIT ;R1 <- (firstDigit * 10) + secondDigit
+000014  004416  STR 1,0,RESULT ;store final 2-digit value
+000015  000000  HLT
+
+000016  000000  RESULT: Data 0
+000017  000060  ZEROCHAR: Data 48 ;ASCII '0'
+000020  000012  TEN: Data 10
+000021  000000  FIRSTDIGIT: Data 0
+000022  000000  SECONDDIGIT: Data 0

@@ -1,0 +1,18 @@
+; Program1_Test2.asm
+; java -cp out part0_assembler.AssemblerMain src/programs/program1/Program1_Test2.asm
+; tests for numerical input
+
+                LOC 20
+
+000024  002437  LDR 1,0,31 ;R1 <- delimiter character (space = 32)
+
+000025  142000  LOOP: IN 0,0 ;read one character into R0
+000026  164100  TRR 0,1 ;compare input char with delimiter
+000027  025432  JCC 3,0,26 ;if equal flag set, jump to DONE
+000030  144001  OUT 0,1 ;echo character to printer
+000031  026025  JMA 0,21 ;jump back to LOOP
+
+000032  000000  DONE: HLT
+
+                LOC 31
+000037  000040  Data 32 ;ASCII space delimiter
