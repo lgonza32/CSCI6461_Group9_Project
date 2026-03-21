@@ -18,42 +18,36 @@ CSCI6461_GROUP9_PROJECT/
 │  ├─ design_notes
 │  ├─ images/
 │  ├─ part1_test cases/
+│  └─ part2_test cases/
 ├─ lib/
 ├─ out/
 ├─ src/
 │  ├─ part0_assembler/
 │  │  ├─ assembler/
-│  │  │  ├─ AsmLine.java
-│  │  │  ├─ Assembler.java
-│  │  │  ├─ ListingWriter.java
-│  │  │  ├─ LoadWriter.java
-│  │  │  ├─ NumberUtil.java
-│  │  │  ├─ SymbolTable.java
-│  │  │  └─ Tokenizer.java
 │  │  ├─ tests/
 │  │  │  ├─ encoder_test.java
-│  │  │  └─ opcode_table_test.java
+│  │  │  │  opcode_table_test.java
+│  │  │  │  testassembler.asm
+│  │  │  └─ test.asm
 │  │  ├─ AssemblerMain.java
 │  │  ├─ Encoder.java
-│  │  ├─ opcode_table.java
-│  │  └─ test.asm
+│  │  └─ opcode_table.java
 │  ├─ simulator/
 │  │  ├─ control/
-│  │  │  └─ Controller.java
 │  │  ├─ cpu/
-│  │  │  └─ CPU.java
 │  │  ├─ io/
-│  │  │  └─ ProgramLoader.java
 │  │  ├─ machine/
-│  │  │  ├─ MachineState.java
-│  │  │  ├─ Memory.java
-│  │  │  └─ MemoryTest.java
-│  │  └─ ui/
-│  │     └─ GUI.java
+│  │  ├─ ui/
+│  │  └─ test/
+│  │    ├─ InstructionTests.java
+│  │    └─ MemoryTest.java
+│  ├─ programs/
+│  │  ├─ program1/
+│  │  │  ├─ Program1_Test#.asm
+│  │  │  └─ Program1.asm
 │  └─ Main.java
 └─ txt/
-   ├─ test_listing.txt
-   └─ test_load.txt
+   └─ <asm listings and loads>
 
 CSCI6461_Group9_Project.jar
 README.md
@@ -62,15 +56,6 @@ README.md
 ## How to build (Windows powershell specific)
 `javac -d out (Get-ChildItem src -Recurse -Filter *.java).FullName` <br>
 Compiles all source files under `/src/` into `/out/` directory
-
-## How to run
-Assembler is packaged as a runnable JAR
-With any Windows CLI:
-1. Navigate to location to save repository
-2. Navigate to project root directory
-3. Clone repository `https://github.com/lgonza32/CSCI6461_Group9_Project.git` or unzip and save into directory.
-4. Run the assembler using `java -jar CSCI6461_Group9_Project.jar`
-<br>\ This executes the compiled `Main.java`, which automatically opens/runs GUI.
 
 ## Assembling Any .asm file
 ```
@@ -116,9 +101,9 @@ Registers displays:
 ## How to Load and Run a Program
 1. Start the simulator GUI
 2. Click IPL
-3. Selected the generated *_load.txt from the /txt/ folder
+3. Selected the generated *_load.txt from the `/txt/` folder
 4. The simulator loads the file into memory and sets the PC to the start address from the listing when available.
-5. Type input into the Console (test cases provided in docs/part2_test_cases/)
+5. Type input into the Console (test cases provided in `/docs/part2_test_cases/`)
 6. Use Run or Single Step to execute the program
 
 ## How to Inspect Program Results
@@ -127,11 +112,23 @@ Registers displays:
 3. Read the Value in MBR
 4. Use Load+ to inspect consecutive memory locations
 
+## InstructionTests.java
+`InstructionTests.java` is the main instruction-level test file for the simulator.
+
+Use it to:
+- verify individual instructions
+- check CPU changes after edits
+- catch regressions before running full assembly programs
+
+### Run the tests
+1. Compile first
+2. Run `java -cp out simulator.tests.InstructionTests`
+
 ## Program 1 Workflow
-1. Assemble src/programs/program1/Program1.asm
+1. Assemble `/src/programs/program1/Program1.asm`
 2. Launch GUI `java -jar CSCI6461_Group9_Project.jar`
-3. IPL txt/Program1_load.txt
-4. Enter Program 1 input sequence into Console Input (sequences found in docs/part2_test_cases/)
+3. IPL `/txt/Program1_load.txt`
+4. Enter Program 1 input sequence into Console Input (sequences found in `/docs/part2_test_cases/`)
 5. Click Run
 6. Inspect printer output and memeory location as needed
 
