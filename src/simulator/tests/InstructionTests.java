@@ -1,15 +1,18 @@
 package simulator.tests;
 
+import java.util.function.IntConsumer;
+import java.util.function.IntSupplier;
 import part0_assembler.Encoder;
 import simulator.cpu.CPU;
 import simulator.machine.Memory;
 import simulator.machine.MachineState;
+import simulator.cache.Cache;
 
 /**
  * Test validation for opcode instructions in simulator
  * - Demonstrates that individual instructions work
  * - Provides a repeatable PASS/FAIL test run
- * - Each test has its own Memory, MachineState, and CPU for debugging
+ * - Each test has its own Memory, Cache, MachineState, and CPU for debugging
  *
  * Not currently validated:
  * - CHK
@@ -1751,7 +1754,7 @@ public final class InstructionTests {
         MachineState s = new MachineState();
 
         final int[] input = { 'A' };
-        CPU cpu = new CPU(mem, s, () -> input[0], value -> {});
+        CPU cpu = newCPU(mem, s, () -> input[0], value -> {});
 
         int instr = ENCODER.encodeIO("IN", 0, 0);
 
@@ -1774,7 +1777,7 @@ public final class InstructionTests {
         Memory mem = new Memory();
         MachineState s = new MachineState();
 
-        CPU cpu = new CPU(mem, s, () -> -1, value -> {});
+        CPU cpu = newCPU(mem, s, () -> -1, value -> {});
 
         int instr = ENCODER.encodeIO("IN", 1, 0);
 
@@ -1800,7 +1803,7 @@ public final class InstructionTests {
         MachineState s = new MachineState();
 
         StringBuilder printer = new StringBuilder();
-        CPU cpu = new CPU(mem, s, () -> -1, value -> printer.append((char) value));
+        CPU cpu = newCPU(mem, s, () -> -1, value -> printer.append((char) value));
 
         int instr = ENCODER.encodeIO("OUT", 2, 1);
 
@@ -1825,7 +1828,7 @@ public final class InstructionTests {
         Memory mem = new Memory();
         MachineState s = new MachineState();
 
-        CPU cpu = new CPU(mem, s, () -> 'A', value -> {});
+        CPU cpu = newCPU(mem, s, () -> 'A', value -> {});
 
         int instr = ENCODER.encodeIO("IN", 0, 1);
 
@@ -1850,7 +1853,7 @@ public final class InstructionTests {
         MachineState s = new MachineState();
 
         StringBuilder printer = new StringBuilder();
-        CPU cpu = new CPU(mem, s, () -> -1, value -> printer.append((char) value));
+        CPU cpu = newCPU(mem, s, () -> -1, value -> printer.append((char) value));
 
         int instr = ENCODER.encodeIO("OUT", 0, 0);
 
@@ -1875,7 +1878,7 @@ public final class InstructionTests {
         Memory mem = new Memory();
         MachineState s = new MachineState();
 
-        CPU cpu = new CPU(mem, s, () -> -1, value -> {});
+        CPU cpu = newCPU(mem, s, () -> -1, value -> {});
 
         int instr = ENCODER.encodeIO("IN", 1, 0);
 
@@ -1901,13 +1904,27 @@ public final class InstructionTests {
 
     /**
      * Create a CPU for a test.
+     * Build a CPU for one isolated instruction test.
      *
-     * @param mem   memory instance
-     * @param state machine state instance
-     * @return      connected CPU
+     * Each test gets:
+     * - a fresh backing Memory
+     * - a fresh unified Cache in front of that memory
+     * - a fresh MachineState
+     *
+     * @param mem   backing memory for the test
+     * @param s     machine state for the test
+     * @return      CPU wired to a fresh cache
      */
-    private static CPU newCPU(Memory mem, MachineState state) {
-        return new CPU(mem, state);
+    private static CPU newCPU(Memory mem, MachineState s) {
+        Cache cache = new Cache(mem);
+        return new CPU(cache, s);
+    }
+
+    private static CPU newCPU(Memory mem, MachineState s,
+                            IntSupplier inputReader,
+                            IntConsumer outputWriter) {
+        Cache cache = new Cache(mem);
+        return new CPU(cache, s, inputReader, outputWriter);
     }
 
     /**
@@ -1926,4 +1943,5 @@ public final class InstructionTests {
             System.out.println("[FAIL] " + name + " - " + details);
         }
     }
+    
 }

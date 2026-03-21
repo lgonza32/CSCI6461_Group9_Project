@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.util.function.Consumer;
 import simulator.cpu.CPU;
 import java.util.function.Supplier;
+import simulator.cache.Cache;
 
 /**
  * Controller for the CSCI 6461 simulator.
@@ -43,6 +44,7 @@ public final class Controller {
     private static final int RUN_DELAY_MS = 50; // delay in ms between steps in run mode
     private Timer runTimer;
     private final Runnable clearPrinterOutput;
+    private final Cache cache = new Cache(memory);
 
     /**
      * Cointroller construct that connects the simulator core to the GUI.
@@ -93,10 +95,11 @@ public final class Controller {
         // start from a clean machine state
         memory.clear();
         state.clear();
+        cache.clear();
 
         // build the CPU with callbacks for keyboard/printer device I/O.
         this.cpu = new CPU(
-                memory,
+                cache,
                 state,
                 this::readNextConsoleChar,
                 this::writePrinterChar
@@ -150,6 +153,7 @@ public final class Controller {
         // Clear machine before loading
         memory.clear();
         state.clear();
+        cache.clear();
 
         // parse the file
         try {
@@ -160,6 +164,8 @@ public final class Controller {
                 memory.write(r.address, r.word);
             }
 
+            cache.clear();
+
             // set PC to first loaded address (good “start point”)
             if (parsed.firstAddress >= 0) {
                 state.setPC(parsed.firstAddress);
@@ -167,7 +173,7 @@ public final class Controller {
             }
 
             // show a dump of loaded words in the Cache Content text area (verification)
-            setCacheText.accept(formatLoadDump(parsed));
+            setCacheText.accept(cache.dump());
 
             log.accept("[IPL] Loaded " + parsed.recordsLoaded + " word(s) into memory.\n");
             if (parsed.firstAddress >= 0) {
@@ -227,8 +233,7 @@ public final class Controller {
                 log.accept("[SET] MAR <- " + Memory.toOct6(state.getMAR()) + "\n");
 
                 // show memory at MAR on console area
-                int word = memory.read(state.getMAR());
-                setCacheText.accept(Memory.toOct6(state.getMAR()) + " " + Memory.toOct6(word) + "\n");
+                setCacheText.accept(cache.dump());
             }
             case "MBR" -> {
                 state.setMBR(value);
@@ -367,6 +372,7 @@ public final class Controller {
         stopRunTimer();
         memory.clear();
         state.clear();
+        cache.clear();
         setCacheText.accept("");
         clearPrinterOutput.run();
         setConsoleInputText.accept("");
@@ -377,15 +383,14 @@ public final class Controller {
 
     public void handleLoad() {
         int mar = state.getMAR();
-        int word = memory.read(mar);
+        int word = cache.read(mar);
         state.setMBR(word);
 
         log.accept("[LOAD] MBR <- MEM[MAR]. MAR=" + Memory.toOct6(mar) +
                 " WORD=" + Memory.toOct6(word) + "\n");
 
         // show memory contents at MAR as required by deliverable
-        setCacheText.accept(Memory.toOct6(mar) + " " + Memory.toOct6(word) + "\n");
-
+        setCacheText.accept(cache.dump());
         refreshUI.run();
     }
 
@@ -411,8 +416,7 @@ public final class Controller {
                 " WORD=" + Memory.toOct6(word) + "\n");
 
         // Show memory contents at MAR
-        setCacheText.accept(Memory.toOct6(mar) + " " + Memory.toOct6(memory.read(mar)) + "\n");
-
+        setCacheText.accept(cache.dump());
         refreshUI.run();
     }
 
@@ -437,14 +441,7 @@ public final class Controller {
      * of throwing an exception.
      */
     private void refreshCacheAtMAR() {
-        int mar = state.getMAR();
-
-        if (mar >= 0 && mar < Memory.SIZE) {
-            int word = memory.read(mar);
-            setCacheText.accept(Memory.toOct6(mar) + " " + Memory.toOct6(word) + "\n");
-        } else {
-            setCacheText.accept("");
-        }
+        setCacheText.accept(cache.dump());
     }
 
     
