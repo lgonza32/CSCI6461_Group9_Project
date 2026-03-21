@@ -20,7 +20,7 @@
 000002  102317  LDX 3,CODE1PTR ;X3 <- main code page base
 
             ; mirror current X1 into work page so we can update/reload it
-000003  104172  STX 1,X1CURPTR,1
+000003  104170  STX 1,X1CURPTR,1
 
             ; jump into main code page base
 000004  026300  JMA 3,0
@@ -44,12 +44,10 @@
 000024  000340  SEARCHLPPTR: Data 224
 000025  000400  RESULTPTR: Data 256
 000026  000440  PRINTPTR: Data 288
-000027  000625  BUFENDPTR: Data 405
-000030  000572  XBUFPTR: Data 378
-000031  000440  PRINTSMALLPTR: Data 288
+000027  000640  PRINT2PTR: Data 416
 
 ; low-memory indirect pointer to WORK[CURX1]
-000032  000562  X1CURPTR: Data 370
+000030  000562  X1CURPTR: Data 370
 
 ; =========================================================
 ; MAIN CODE PAGE
@@ -69,13 +67,13 @@
 
              ; increment X1 properly:
              ; save X1 -> WORK[CURX1]
-000110  104172  STX 1,X1CURPTR,1
+000110  104170  STX 1,X1CURPTR,1
 
              ; R0 <- WORK[CURX1]
-000111  002072  LDR 0,0,X1CURPTR,1
+000111  002070  LDR 0,0,X1CURPTR,1
 000112  014001  AIR 0,1
-000113  004072  STR 0,0,X1CURPTR,1
-000114  102172  LDX 1,X1CURPTR,1
+000113  004070  STR 0,0,X1CURPTR,1
+000114  102170  LDX 1,X1CURPTR,1
 
              ; restore X3 to CODE1 page base before page-local branch
 000115  102317  LDX 3,CODE1PTR
@@ -88,7 +86,7 @@
 
              ; after 20 numbers, reset X1 to NUMBERS base
 000122  102115  LDX 1,NUMBASEPTR
-000123  104172  STX 1,X1CURPTR,1
+000123  104170  STX 1,X1CURPTR,1
 
 000124  002006  READQUERY: LDR 0,0,ONE
 000125  004201  STR 0,2,MODE-WORK ;MODE = 1 => query input
@@ -100,7 +98,7 @@
 
             ; reset X1 to start of array before searching
 000132  102115  LDX 1,NUMBASEPTR
-000133  104172  STX 1,X1CURPTR,1
+000133  104170  STX 1,X1CURPTR,1
 
             ; jump to search initialization page
 000134  102323  LDX 3,SEARCH1PTR
@@ -250,11 +248,11 @@
 000315  004206  STR 0,2,BESTDIFF-WORK
 
                 ; advance X1 to second element
-000316  104172  STX 1,X1CURPTR,1
-000317  002072  LDR 0,0,X1CURPTR,1
+000316  104170  STX 1,X1CURPTR,1
+000317  002070  LDR 0,0,X1CURPTR,1
 000320  014001  AIR 0,1
-000321  004072  STR 0,0,X1CURPTR,1
-000322  102172  LDX 1,X1CURPTR,1
+000321  004070  STR 0,0,X1CURPTR,1
+000322  102170  LDX 1,X1CURPTR,1
 
                 ; SEARCHCOUNT = 19 remaining
 000323  002204  LDR 0,2,SEARCHCOUNT-WORK
@@ -302,11 +300,11 @@
 000361  002211  LDR 0,2,CANDVAL-WORK
 000362  004205  STR 0,2,BESTVAL-WORK
 
-000363  104172  NOUPDATE: STX 1,X1CURPTR,1 ;advance X1 to next number
-000364  002072  LDR 0,0,X1CURPTR,1
+000363  104170  NOUPDATE: STX 1,X1CURPTR,1 ;advance X1 to next number
+000364  002070  LDR 0,0,X1CURPTR,1
 000365  014001  AIR 0,1
-000366  004072  STR 0,0,X1CURPTR,1
-000367  102172  LDX 1,X1CURPTR,1
+000366  004070  STR 0,0,X1CURPTR,1
+000367  102170  LDX 1,X1CURPTR,1
 
              ; decrement remaining count
 000370  002204  LDR 0,2,SEARCHCOUNT-WORK
@@ -320,25 +318,40 @@
 
 ; =========================================================
 ; RESULT PAGE
-; Prints QUERY, then a space, then BESTVAL
+; Prints QUERY first, then a space, then BESTVAL.
+;
+; PRINTMODE:
+; 0 = currently printing QUERY
+; 1 = currently printing BESTVAL
 ; =========================================================
 
                 LOC 256
+; Move QUERY into PRINTVAL so the print page can output it
 000400  002203  RESULTPAGE: LDR 0,2,QUERY-WORK
 000401  004217  STR 0,2,PRINTVAL-WORK
+
+                 ; PRINTMODE = 0 means "printing query"
 000402  002005  LDR 0,0,ZERO
-000403  004221  STR 0,2,PRINTMODE-WORK ;0 = printing query
-000404  102331  LDX 3,PRINTSMALLPTR
+000403  004221  STR 0,2,PRINTMODE-WORK
+
+                 ; Jump to the current print routine
+000404  102326  LDX 3,PRINTPTR
 000405  026300  JMA 3,0
 
+; Print a space between QUERY and BESTVAL
 000406  002011  RET_AFTER_QUERY: LDR 0,0,SPACECHAR
 000407  144001  OUT 0,1
 
+                 ; Move BESTVAL into PRINTVAL so the print page can output it
 000410  002205  LDR 0,2,BESTVAL-WORK
 000411  004217  STR 0,2,PRINTVAL-WORK
+
+                 ; PRINTMODE = 1 means "printing best value"
 000412  002006  LDR 0,0,ONE
-000413  004221  STR 0,2,PRINTMODE-WORK ;1 = printing best value
-000414  102331  LDX 3,PRINTSMALLPTR
+000413  004221  STR 0,2,PRINTMODE-WORK
+
+                 ; Jump to the same print routine again
+000414  102326  LDX 3,PRINTPTR
 000415  026300  JMA 3,0
 
 000416  000000  RET_AFTER_BEST: HLT
@@ -392,11 +405,14 @@
 
 ; =========================================================
 ; PRINT SMALL SIGNED INT PAGE
-; Current simple version:
+;
+; Current print routine:
 ; - prints 0 correctly
-; - prints leading '-' for negatives
-; - prints one digit 0..9
-; This is enough to verify the end-to-end result path first.
+; - prints a leading '-' for negative values
+; - prints one decimal digit 0..9
+;
+; This is a staged printer used to verify the end-to-end
+; Program 1 result path before building full multi-digit output.
 ; =========================================================
 
                 LOC 288
@@ -412,7 +428,8 @@
 000446  012617  SMR 1,2,PRINTVAL-WORK
 000447  004617  STR 1,2,PRINTVAL-WORK
 
-000450  002217  PRINT_POSITIVE: LDR 0,2,PRINTVAL-WORK ;convert one-digit value to ASCII by adding '0'
+; convert one-digit value to ASCII by adding '0'
+000450  002217  PRINT_POSITIVE: LDR 0,2,PRINTVAL-WORK
 000451  010012  AMR 0,0,ZEROCHAR
 000452  144001  OUT 0,1
 000453  026316  JMA 3,PRINT_RETURN-PRINTSMALL

@@ -34,19 +34,17 @@ ZEROCHAR:    Data 48
 NINECHAR:    Data 57
 MINUSCHAR:   Data 45
 
-NUMBASEPTR:  Data 320
-WORKBASEPTR: Data 360
-CODE1PTR:    Data 64
-PARSEPTR:    Data 96
-PARSE2PTR:   Data 128
-PARSE3PTR:   Data 160
-SEARCH1PTR:  Data 192
-SEARCHLPPTR: Data 224
-RESULTPTR:   Data 256
-PRINTPTR:    Data 288
-BUFENDPTR:   Data 405
-XBUFPTR:     Data 378
-PRINTSMALLPTR: Data 288
+NUMBASEPTR:     Data 320
+WORKBASEPTR:    Data 360
+CODE1PTR:       Data 64
+PARSEPTR:       Data 96
+PARSE2PTR:      Data 128
+PARSE3PTR:      Data 160
+SEARCH1PTR:     Data 192
+SEARCHLPPTR:    Data 224
+RESULTPTR:      Data 256
+PRINTPTR:       Data 288
+PRINT2PTR:      Data 416
 
 ; low-memory indirect pointer to WORK[CURX1]
 X1CURPTR:    Data 370
@@ -320,28 +318,43 @@ SEARCHDONE:  LDX 3,RESULTPTR
 
 ; =========================================================
 ; RESULT PAGE
-; Prints QUERY, then a space, then BESTVAL
+; Prints QUERY first, then a space, then BESTVAL.
+;
+; PRINTMODE:
+; 0 = currently printing QUERY
+; 1 = currently printing BESTVAL
 ; =========================================================
 
 LOC 256
-RESULTPAGE:   LDR 0,2,QUERY-WORK
-              STR 0,2,PRINTVAL-WORK
-              LDR 0,0,ZERO
-              STR 0,2,PRINTMODE-WORK     ; 0 = printing query
-              LDX 3,PRINTSMALLPTR
-              JMA 3,0
+; Move QUERY into PRINTVAL so the print page can output it
+RESULTPAGE:      LDR 0,2,QUERY-WORK         
+                 STR 0,2,PRINTVAL-WORK
 
-RET_AFTER_QUERY:    LDR 0,0,SPACECHAR
-                    OUT 0,1
+                 ; PRINTMODE = 0 means "printing query"
+                 LDR 0,0,ZERO
+                 STR 0,2,PRINTMODE-WORK
 
-                    LDR 0,2,BESTVAL-WORK
-                    STR 0,2,PRINTVAL-WORK
-                    LDR 0,0,ONE
-                    STR 0,2,PRINTMODE-WORK     ; 1 = printing best value
-                    LDX 3,PRINTSMALLPTR
-                    JMA 3,0
+                 ; Jump to the current print routine
+                 LDX 3,PRINTPTR
+                 JMA 3,0
 
-RET_AFTER_BEST: HLT
+; Print a space between QUERY and BESTVAL
+RET_AFTER_QUERY: LDR 0,0,SPACECHAR
+                 OUT 0,1
+
+                 ; Move BESTVAL into PRINTVAL so the print page can output it
+                 LDR 0,2,BESTVAL-WORK
+                 STR 0,2,PRINTVAL-WORK
+
+                 ; PRINTMODE = 1 means "printing best value"
+                 LDR 0,0,ONE
+                 STR 0,2,PRINTMODE-WORK
+
+                 ; Jump to the same print routine again
+                 LDX 3,PRINTPTR
+                 JMA 3,0
+
+RET_AFTER_BEST:  HLT
 
 ; =========================================================
 ; DATA PAGES
@@ -392,11 +405,14 @@ XBUF:           Data 0    ; current print buffer pointer mirror
 
 ; =========================================================
 ; PRINT SMALL SIGNED INT PAGE
-; Current simple version:
+;
+; Current print routine:
 ; - prints 0 correctly
-; - prints leading '-' for negatives
-; - prints one digit 0..9
-; This is enough to verify the end-to-end result path first.
+; - prints a leading '-' for negative values
+; - prints one decimal digit 0..9
+;
+; This is a staged printer used to verify the end-to-end
+; Program 1 result path before building full multi-digit output.
 ; =========================================================
 
 LOC 288
@@ -412,7 +428,8 @@ PRINTSMALL:   LDR 0,2,PRINTVAL-WORK
               SMR 1,2,PRINTVAL-WORK
               STR 1,2,PRINTVAL-WORK
 
-PRINT_POSITIVE: LDR 0,2,PRINTVAL-WORK   ; convert one-digit value to ASCII by adding '0'
+; convert one-digit value to ASCII by adding '0'
+PRINT_POSITIVE: LDR 0,2,PRINTVAL-WORK   
                 AMR 0,0,ZEROCHAR
                 OUT 0,1
                 JMA 3,PRINT_RETURN-PRINTSMALL
