@@ -45,6 +45,8 @@ SEARCHLPPTR:    Data 224
 RESULTPTR:      Data 256
 PRINTPTR:       Data 288
 PRINT2PTR:      Data 416
+BUFENDPTR:      Data 405
+XBUFPTR:        Data 378
 
 ; low-memory indirect pointer to WORK[CURX1]
 X1CURPTR:    Data 370
@@ -327,14 +329,14 @@ SEARCHDONE:  LDX 3,RESULTPTR
 
 LOC 256
 ; Move QUERY into PRINTVAL so the print page can output it
-RESULTPAGE:      LDR 0,2,QUERY-WORK         
+RESULTPAGE:       LDR 0,2,QUERY-WORK
                  STR 0,2,PRINTVAL-WORK
 
                  ; PRINTMODE = 0 means "printing query"
                  LDR 0,0,ZERO
                  STR 0,2,PRINTMODE-WORK
 
-                 ; Jump to the current print routine
+                 ; Jump to the print routine
                  LDX 3,PRINTPTR
                  JMA 3,0
 
@@ -404,42 +406,121 @@ PRINTMODE:      Data 0    ; 0=query, 1=best
 XBUF:           Data 0    ; current print buffer pointer mirror
 
 ; =========================================================
-; PRINT SMALL SIGNED INT PAGE
+; PRINT SIGNED INT PAGE 1
 ;
-; Current print routine:
+; Full multi-digit print routine:
 ; - prints 0 correctly
-; - prints a leading '-' for negative values
-; - prints one decimal digit 0..9
-;
-; This is a staged printer used to verify the end-to-end
-; Program 1 result path before building full multi-digit output.
+; - prints a leading '-' for negatives
+; - extracts decimal digits using DVD by 10
+; - stores digits into PRINTBUF from right to left
+; - then jumps to page 2 to output the buffer in forward order
 ; =========================================================
 
 LOC 288
-PRINTSMALL:   LDR 0,2,PRINTVAL-WORK
-              JZ 0,3,PRINT_ZERO-PRINTSMALL
+PRINTPAGE1:    LDR 0,2,PRINTVAL-WORK
+               JZ 0,3,TO_PRINT_ZERO-PRINTPAGE1
 
-              ; if negative, print '-' and negate value
-              JGE 0,3,PRINT_POSITIVE-PRINTSMALL
-              LDR 1,0,MINUSCHAR
-              OUT 1,1
+               ; Clear DIGCOUNT before extracting digits
+               LDR 1,0,ZERO
+               STR 1,2,DIGCOUNT-WORK
 
-              LDR 1,0,ZERO
-              SMR 1,2,PRINTVAL-WORK
-              STR 1,2,PRINTVAL-WORK
+               ; If negative, print '-' and negate the value first
+               JGE 0,3,PRINT_INITBUF-PRINTPAGE1
+               LDR 1,0,MINUSCHAR
+               OUT 1,1
 
-; convert one-digit value to ASCII by adding '0'
-PRINT_POSITIVE: LDR 0,2,PRINTVAL-WORK   
-                AMR 0,0,ZEROCHAR
-                OUT 0,1
-                JMA 3,PRINT_RETURN-PRINTSMALL
+               LDR 1,0,ZERO
+               SMR 1,2,PRINTVAL-WORK
+               STR 1,2,PRINTVAL-WORK
 
-PRINT_ZERO:   LDR 0,0,ZEROCHAR
-              OUT 0,1
+PRINT_INITBUF: LDX 1,BUFENDPTR
+               STX 1,XBUFPTR,1
+               JMA 3,EXTRACT_LOOP-PRINTPAGE1
 
-PRINT_RETURN: LDR 0,2,PRINTMODE-WORK
-              JZ 0,3,RET_PRINT_QUERY-PRINTSMALL
-              JMA 3,RET_PRINT_BEST-PRINTSMALL
+TO_PRINT_ZERO: LDX 3,PRINT2PTR
+               JMA 3,PRINT_ZERO2-PRINTPAGE2
+
+; Divide PRINTVAL by 10
+; After DVD:
+;   R0 = quotient
+;   R1 = remainder
+EXTRACT_LOOP:  LDR 2,0,TEN
+               LDR 0,2,PRINTVAL-WORK
+               DVD 0,2
+
+               ; Save quotient immediately before R0 gets reused
+               STR 0,2,PRINTVAL-WORK
+
+               ; Convert remainder to ASCII and store in buffer
+               AMR 1,0,ZEROCHAR
+               STR 1,1,0
+
+               ; DIGCOUNT++
+               LDR 0,2,DIGCOUNT-WORK
+               AIR 0,1
+               STR 0,2,DIGCOUNT-WORK
+
+               ; Move buffer pointer left by 1
+               STX 1,XBUFPTR,1
+               LDR 0,0,XBUFPTR,1
+               SIR 0,1
+               STR 0,0,XBUFPTR,1
+               LDX 1,XBUFPTR,1
+
+               ; If quotient != 0, continue extracting digits
+               LDR 0,2,PRINTVAL-WORK
+               JNE 0,3,EXTRACT_LOOP-PRINTPAGE1
+
+               ; X1 currently points one slot before the first digit.
+               ; Move it right once so it points at the first digit to print.
+               STX 1,XBUFPTR,1
+               LDR 0,0,XBUFPTR,1
+               AIR 0,1
+               STR 0,0,XBUFPTR,1
+               LDX 1,XBUFPTR,1
+
+               ; Jump to page 2 to print buffered digits
+               LDX 3,PRINT2PTR
+               JMA 3,OUTPUT_LOOP-PRINTPAGE2
+
+; =========================================================
+; PRINT SIGNED INT PAGE 2
+;
+; Outputs buffered digits left-to-right, then returns to
+; either RET_AFTER_QUERY or RET_AFTER_BEST depending on PRINTMODE.
+; =========================================================
+
+LOC 416
+PRINTPAGE2:    JMA 3,OUTPUT_LOOP-PRINTPAGE2
+
+PRINT_ZERO2:   LDR 0,0,ZEROCHAR
+               OUT 0,1
+               JMA 3,PRINT_RETURN-PRINTPAGE2
+
+OUTPUT_LOOP:   LDR 0,2,DIGCOUNT-WORK
+               JZ 0,3,PRINT_RETURN-PRINTPAGE2
+
+               ; Output the current buffered digit
+               LDR 0,1,0
+               OUT 0,1
+
+               ; Advance X1 to the next digit slot
+               STX 1,XBUFPTR,1
+               LDR 0,0,XBUFPTR,1
+               AIR 0,1
+               STR 0,0,XBUFPTR,1
+               LDX 1,XBUFPTR,1
+
+               ; DIGCOUNT--
+               LDR 0,2,DIGCOUNT-WORK
+               SIR 0,1
+               STR 0,2,DIGCOUNT-WORK
+
+               JMA 3,OUTPUT_LOOP-PRINTPAGE2
+
+PRINT_RETURN:  LDR 0,2,PRINTMODE-WORK
+               JZ 0,3,RET_PRINT_QUERY-PRINTPAGE2
+               JMA 3,RET_PRINT_BEST-PRINTPAGE2
 
 RET_PRINT_QUERY:    LDX 3,RESULTPTR
                     JMA 3,RET_AFTER_QUERY-RESULTPAGE
