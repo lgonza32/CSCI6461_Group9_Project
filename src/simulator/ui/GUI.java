@@ -122,7 +122,7 @@ public final class GUI extends JFrame {
 
         JSplitPane split = new JSplitPane(
                 JSplitPane.HORIZONTAL_SPLIT,
-                leftScroll,          // ✅ use the scroll pane
+                leftScroll,          // use the scroll pane
                 buildRightColumn()
         );
 
@@ -275,7 +275,6 @@ public final class GUI extends JFrame {
 
         printerArea.setEditable(false);
         printerArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
-        printerArea.setText("(printer output placeholder)\n");
 
         p.add(new JScrollPane(printerArea), BorderLayout.CENTER);
         return p;

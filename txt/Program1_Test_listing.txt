@@ -1,0 +1,11 @@
+; Program1_Test.asm
+; java -cp out part0_assembler.AssemblerMain src/programs/program1/Program1_Test.asm
+
+                LOC 0
+000000  142000  IN 0,0
+000001  144001  OUT 0,1
+000002  142000  IN 0,0
+000003  144001  OUT 0,1
+000004  142000  IN 0,0
+000005  144001  OUT 0,1
+000006  000000  HLT
