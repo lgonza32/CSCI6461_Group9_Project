@@ -1,12 +1,13 @@
 ; =========================================================
 ; Program1.asm
 ;
-; Behavior:
-; 1) Read 20 signed integers from console input
-; 2) Store those 20 integers into the NUMBERS page
-; 3) Read one signed query integer
-; 4) Find the stored value with the smallest absolute difference
-; 5) Print the query value and the closest stored value
+; Flow:
+; 1. Read 20 signed integers from console input
+; 2. Store those 20 integers into the NUMBERS page
+; 3. Read one signed query integer
+; 4. Find the stored value with the smallest absolute difference
+; 5. Print the query value and the closest stored value
+; 6. Halt on invalid input
 ;
 ; Error handling:
 ; - If a non-digit character appears inside a number token,
