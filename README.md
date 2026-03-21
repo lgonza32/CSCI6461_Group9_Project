@@ -8,7 +8,10 @@
 - Any CLI provided by windows
 
 ## Part 2 Overview
-- Goal: Implementing GUI and simulator backend
+- Build a working simulator for the CSCI 6461 machine that can correctly assemble, load, and execute programs through an operator-style console. 
+- The simulator should support the required instruction groups, memory/register operations, console input and printer output, and testing through both instruction-level tests and full assembly programs. 
+- Finish the remaining instructions and develop Program 1 so the machine can read signed integers, store them, search for the closest value, and display the result.
+- Design notes located in `/docs/design_notes/Group 9 Project Pt 2 Design Notes.pdf`
 
 ## Project Structure
 ```
@@ -16,6 +19,7 @@ CSCI6461_GROUP9_PROJECT/
 ├─ .vscode/
 ├─ docs/
 │  ├─ design_notes
+│  │  │  └─ Group 9 Project Pt 2 Design Notes.pdf
 │  ├─ images/
 │  ├─ part1_test cases/
 │  └─ part2_test cases/
