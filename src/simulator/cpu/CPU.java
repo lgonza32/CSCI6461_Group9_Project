@@ -4,6 +4,7 @@ import simulator.machine.Memory;
 import simulator.machine.MachineState;
 import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
+import simulator.cache.Cache;
 
 /**
  * CPU implements the fetch/decode/execute cycle for the simulator.
@@ -20,35 +21,36 @@ import java.util.function.IntSupplier;
  */
 public final class CPU {
 
-    private final Memory mem;
+    // private final Memory mem;
     private final MachineState s;
     private boolean halted = false;
     /** Reads one input character code from a device callback. Returns -1 if no data. */
     private final IntSupplier inputReader;
     /** Writes one output character code to a device callback. */
     private final IntConsumer outputWriter; 
+    private final Cache cache;
 
     /**
-     * Construct a CPU attached to memory and machine state.
+     * Construct a CPU attached to a unified cache and machine state.
      * Uses no-op I/O callbacks by default.
      *
      * @param mem   machine memory
      * @param state machine register state
      */
-    public CPU(Memory mem, MachineState state) {
-        this(mem, state, () -> -1, value -> {});
+    public CPU(Cache cache, MachineState state) {
+        this(cache, state, () -> -1, value -> {});
     }
 
     /**
-     * Construct a CPU attached to memory, state, and I/O callbacks.
+     * Construct a CPU attached to a unified cache, machine state, and I/O callbacks.
      *
-     * @param mem           machine memory
+     * @param cache         unified cache sitting in front of backing memory
      * @param state         machine register state
      * @param inputReader   callback that returns one input character code, or -1 if none
      * @param outputWriter  callback that consumes one output character code
      */
-    public CPU(Memory mem, MachineState state, IntSupplier inputReader, IntConsumer outputWriter) {
-        this.mem = mem;
+    public CPU(Cache cache, MachineState state, IntSupplier inputReader, IntConsumer outputWriter) {
+        this.cache = cache;
         this.s = state;
         this.inputReader = inputReader;
         this.outputWriter = outputWriter;
@@ -72,6 +74,7 @@ public final class CPU {
      *  2) DECODE/EXECUTE based on opcode
      *
      * @return a short log line describing what happened
+     * @throws IllegalArgumentException if an invalid memory access or unsupported opcode is encountered
      */
     public String step() {
         if (halted) {
@@ -86,7 +89,7 @@ public final class CPU {
 
         int instr;
         try {
-            instr = mem.read(pc0);
+            instr = cache.read(pc0);
         } catch (IllegalArgumentException ex) {
             halted = true;
             return "[FAULT] Fetch address out of range: " + pc0 + "\n";
@@ -122,7 +125,7 @@ public final class CPU {
                 // LDR (octal 001 => decimal 1): R[r] <- MEM[EA]
                 case 1 -> {
                     int ea = computeEA(ix, ind, addr);
-                    int val = mem.read(ea);
+                    int val = cache.read(ea);
                     s.setGPR(r, val);
                     return "[STEP] LDR R" + r + " <- MEM[" + Memory.toOct6(ea) + "] = " +
                             Memory.toOct6(val) + "\n";
@@ -132,7 +135,7 @@ public final class CPU {
                 case 2 -> {
                     int ea = computeEA(ix, ind, addr);
                     int val = s.getGPR(r);
-                    mem.write(ea, val);
+                    cache.write(ea, val);
                     return "[STEP] STR MEM[" + Memory.toOct6(ea) + "] <- R" + r
                             + " = " + Memory.toOct6(val) + "\n";
                 }
@@ -154,7 +157,7 @@ public final class CPU {
                     int ea = computeEA(ix, ind, addr);
 
                     int regVal = toSigned16(s.getGPR(r));
-                    int memVal = toSigned16(mem.read(ea));
+                    int memVal = toSigned16(cache.read(ea));
                     int wideResult = regVal + memVal;
 
                     updateArithmeticCC(wideResult);
@@ -174,7 +177,7 @@ public final class CPU {
                     int ea = computeEA(ix, ind, addr);
 
                     int regVal = toSigned16(s.getGPR(r));
-                    int memVal = toSigned16(mem.read(ea));
+                    int memVal = toSigned16(cache.read(ea));
                     int wideResult = regVal - memVal;
 
                     updateArithmeticCC(wideResult);
@@ -460,7 +463,7 @@ public final class CPU {
                     }
 
                     int ea = computeEA_noIndex(ind, addr);
-                    int val = mem.read(ea);
+                    int val = cache.read(ea);
                     s.setIXR(x, val);
 
                     return "[STEP] LDX X" + x + " <- MEM[" + Memory.toOct6(ea) + "] = " +
@@ -477,7 +480,7 @@ public final class CPU {
                     }
                     int ea = computeEA_noIndex(ind, addr);
                     int val = s.getIXR(x);
-                    mem.write(ea, val);
+                    cache.write(ea, val);
                     return "[STEP] STX MEM[" + Memory.toOct6(ea) + "] <- X" + x
                             + " = " + Memory.toOct6(val) + "\n";
                 }
@@ -711,7 +714,7 @@ public final class CPU {
 
         // Indirect
         if (ind == 1) {
-            int ptr = mem.read(ea);
+            int ptr = cache.read(ea);
             ea = ptr & 0xFFF;
         }
 
@@ -738,7 +741,7 @@ public final class CPU {
         int ea = addr5 & 0xFFF;
 
         if (ind == 1) {
-            int ptr = mem.read(ea);
+            int ptr = cache.read(ea);
             ea = ptr & 0xFFF;
         }
 
