@@ -499,8 +499,9 @@ public final class CPU {
 
                     int ch = inputReader.getAsInt();
 
-                    // no input 
+                    // no input, restore PC
                     if (ch < 0) {
+                        s.setPC(pc0);
                         return "[STEP] IN waiting/no input available on device " + devid + "\n";
                     }
 

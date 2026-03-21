@@ -199,6 +199,7 @@ public final class InstructionTests {
         testOUTPrinterBasic();
         testINInvalidDevice();
         testOUTInvalidDevice();
+        testINWaitRestoresPC();
         System.out.println();
     }
 
@@ -1863,6 +1864,34 @@ public final class InstructionTests {
             "OUT invalid device",
             cpu.isHalted() && log.toLowerCase().contains("only supports"),
             "CPU should halt on invalid OUT device"
+        );
+    }
+
+    /**
+     * IN with no available input should wait by restoring PC
+     * to the same instruction instead of skipping past it.
+     */
+    private static void testINWaitRestoresPC() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+
+        CPU cpu = new CPU(mem, s, () -> -1, value -> {});
+
+        int instr = ENCODER.encodeIO("IN", 1, 0);
+
+        mem.write(0, instr);
+        s.setPC(0);
+        s.setGPR(1, 0);
+
+        String log = cpu.step();
+
+        check(
+            "IN wait restores PC",
+            !cpu.isHalted()
+                && s.getPC() == 0
+                && s.getGPR(1) == 0
+                && log.toLowerCase().contains("waiting"),
+            "IN should wait at the same PC when no input is available"
         );
     }
 

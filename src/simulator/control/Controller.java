@@ -309,12 +309,20 @@ public final class Controller {
         log.accept("[RUN] Starting timed fetch-decode-execute loop.\n");
 
         runTimer = new Timer(RUN_DELAY_MS, e -> {
-            executeOneStep();
+            String msg = executeOneStep();
 
             // stop automatically once the CPU halts
             if (cpu.isHalted()) {
                 stopRunTimer();
                 log.accept("[RUN] CPU halted. Run loop stopped.\n");
+                return;
+            }
+
+            // If the CPU is waiting for keyboard/card input, stop the timer
+            // so the user can type into the console input field and press Run again
+            if (msg.contains("waiting/no input")) {
+                stopRunTimer();
+                log.accept("[RUN] Execution paused waiting for input.\n");
             }
         });
 
