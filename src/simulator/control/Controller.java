@@ -40,6 +40,8 @@ public final class Controller {
     private final Memory memory = new Memory();
     private final MachineState state = new MachineState();
     private final CPU cpu;
+    private static final int RUN_DELAY_MS = 50; // delay in ms between steps in run mode
+    private Timer runTimer;
 
     /**
      * Cointroller construct that connects the simulator core to the GUI.
@@ -141,6 +143,7 @@ public final class Controller {
         setProgramFilePath.accept(file.getAbsolutePath());
         log.accept("[IPL] Selected program file: " + file.getAbsolutePath() + "\n");
 
+        stopRunTimer();
         // Clear machine before loading
         memory.clear();
         state.clear();
@@ -282,36 +285,81 @@ public final class Controller {
      *  HANDLER LOGS
      * ========================== */
 
+    /**
+     * Start timed instruction execution until the CPU halts
+     * or the user presses Halt/Reset.
+     *
+     * Uses a Swing Timer so the GUI remains responsive while the
+     * simulator continues stepping through instructions.
+     */
     public void handleRun() {
+        // Dd not start a second run loop if one is already active
+        if (runTimer != null && runTimer.isRunning()) {
+            log.accept("[RUN] Run loop is already active.\n");
+            return;
+        }
+
+        // if CPU is currently halted, reset only the halted flag
+        // so execution can continue from the current machine state
+        if (cpu.isHalted()) {
+            cpu.reset();
+        }
+
         log.accept("[RUN] Run requested.\n");
-        log.accept("[RUN] Start fetch-decode-execute loop.\n");
+        log.accept("[RUN] Starting timed fetch-decode-execute loop.\n");
+
+        runTimer = new Timer(RUN_DELAY_MS, e -> {
+            executeOneStep();
+
+            // stop automatically once the CPU halts
+            if (cpu.isHalted()) {
+                stopRunTimer();
+                log.accept("[RUN] CPU halted. Run loop stopped.\n");
+            }
+        });
+
+        runTimer.start();
     }
 
+    /**
+     * Execute exactly one instruction.
+     *
+     * If the timed run loop is active, single-step is ignored to avoid
+     * conflicting execution modes.
+     */
     public void handleStep() {
-        String msg = cpu.step();
-        log.accept(msg);
-
-        // show memory contents at MAR on the user console
-        int mar = state.getMAR();
-        int word = memory.read(mar);
-        setCacheText.accept(Memory.toOct6(mar) + " " + Memory.toOct6(word) + "\n");
-
-    refreshUI.run();
+        if (runTimer != null && runTimer.isRunning()) {
+            log.accept("[STEP] Ignored because RUN is active.\n");
+            return;
+        }
+        executeOneStep();
     }
 
+    /**
+     * Halt CPU execution and stop the active run loop.
+     */
     public void handleHalt() {
+        stopRunTimer();
+        cpu.halt();
         log.accept("[HALT] Halt requested.\n");
-        log.accept("[HALT] Stop run loop.\n");
+        log.accept("[HALT] CPU halted and run loop stopped.\n");
+        refreshUI.run();
     }
 
+    /**
+     * Reset the simulator to a clean state.
+     *
+     * This stops any active run loop, clears memory/registers,
+     * clears the cache/debug display, and re-enables future stepping/running.
+     */
     public void handleReset() {
-        // Clear machine components and GUI output areas for a fresh run.
+        stopRunTimer();
         memory.clear();
         state.clear();
+        setCacheText.accept("");
         cpu.reset();
-        appendPrinterOutput.accept("");
+        log.accept("[RESET] Cleared registers and memory.\n");
         refreshUI.run();
-        log.accept("[RESET] Machine state cleared.\n");
     }
 
     public void handleLoad() {
@@ -328,13 +376,19 @@ public final class Controller {
         refreshUI.run();
     }
 
+    /**
+     * Load the memory word at the current MAR into MBR, then advance MAR by one.
+     */
     public void handleLoadPlus() {
         handleLoad();
-        state.setMAR(state.getMAR() + 1);
+        state.setMAR(state.getMAR() + 1); // advance MAR to the next memory location
         log.accept("[LOAD+] MAR incremented to " + Memory.toOct6(state.getMAR()) + "\n");
         refreshUI.run();
     }
 
+    /**
+     * Store the contents of MBR into memory at the address currently held in MAR.
+     */
     public void handleStore() {
         int mar = state.getMAR();
         int word = state.getMBR();
@@ -349,11 +403,58 @@ public final class Controller {
         refreshUI.run();
     }
 
+    /**
+     * Store the contents of MBR into memory at MAR, then advance MAR by one.
+     */
     public void handleStorePlus() {
         handleStore();
-        state.setMAR(state.getMAR() + 1);
+        state.setMAR(state.getMAR() + 1); // advance MAR to the next memory location
         log.accept("[STORE+] MAR incremented to " + Memory.toOct6(state.getMAR()) + "\n");
         refreshUI.run();
+    }
+
+    /** ==========================
+     *  Cache Functions
+     * ========================== */
+
+    /**
+     * Refresh the cache/debug display using the current MAR contents.
+     *
+     * If MAR is outside legal memory range, the display is cleared instead
+     * of throwing an exception.
+     */
+    private void refreshCacheAtMAR() {
+        int mar = state.getMAR();
+
+        if (mar >= 0 && mar < Memory.SIZE) {
+            int word = memory.read(mar);
+            setCacheText.accept(Memory.toOct6(mar) + " " + Memory.toOct6(word) + "\n");
+        } else {
+            setCacheText.accept("");
+        }
+    }
+
+    
+    /**
+     * Stop the active run timer if it exists.
+     */
+    private void stopRunTimer() {
+        if (runTimer != null && runTimer.isRunning()) {
+            runTimer.stop();
+        }
+    }
+
+    /**
+     * Execute one CPU step and refresh GUI state.
+     *
+     * @return CPU step log message
+     */
+    private String executeOneStep() {
+        String msg = cpu.step();
+        log.accept(msg);
+        refreshCacheAtMAR();
+        refreshUI.run();
+        return msg;
     }
 
     /* ==========================
