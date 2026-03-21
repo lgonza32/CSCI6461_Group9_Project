@@ -230,27 +230,6 @@ public final class Assembler {
     }
 
     /**
-     * Parse token as:
-     *  - DECIMAL literal, or
-     *  - label reference (resolved through SymbolTable)
-     * 
-     * @param token     operand token
-     * @param symtab    symbol table
-     * @param lineNo    source line number
-     * @return          resolved integer value
-     */
-    private int parseDecimalOrLabel(String token, SymbolTable symtab, int lineNo) {
-        if (NumberUtil.isDecimalLiteral(token)) {
-            return Integer.parseInt(token);
-        }
-        Integer addr = symtab.get(token);
-        if (addr == null) {
-            throw new RuntimeException("Unknown label '" + token + "' at line " + lineNo);
-        }
-        return addr;
-    }
-
-    /**
      * Rebuild the right-side listing "source" column.
      * Example:
      *  "End: HLT ;STOP"
@@ -283,11 +262,18 @@ public final class Assembler {
     }
 
     /**
-     * Resolve every operand token to an integer.
+     * Resolve every operand token to an integer value.
      *
-     * Responsibility:
-     * - decimal literals are parsed directly
-     * - labels are looked up in the symbol table
+     * Each operand may be:
+     * - a decimal literal
+     * - a label
+     * - a simple +/- expression involving labels and/or decimal literals
+     *
+     * Examples:
+     * - 10
+     * - LOOP
+     * - WORK+5
+     * - CURVAL-WORK
      *
      * @param al        source line whose operands will be resolved
      * @param symtab    symbol table for label lookup
@@ -297,17 +283,7 @@ public final class Assembler {
         List<Integer> resolved = new ArrayList<>();
 
         for (String tok : al.operands) {
-            if (NumberUtil.isDecimalLiteral(tok)) {
-                resolved.add(Integer.parseInt(tok));
-            } else {
-                Integer addr = symtab.get(tok);
-                if (addr == null) {
-                    throw new RuntimeException(
-                            "Unknown label '" + tok + "' at line " + al.lineNo
-                    );
-                }
-                resolved.add(addr);
-            }
+            resolved.add(evaluateExpression(tok, symtab, al.lineNo));
         }
 
         return resolved;
@@ -568,6 +544,127 @@ public final class Assembler {
         int deviceId = ops.get(1);
 
         return encoder.encodeIO(op, r, deviceId);
+    }
+
+    /**
+     * Resolve one term in an operand expression.
+     *
+     * A term is either:
+     * - a decimal literal
+     * - a label found in the symbol table
+     *
+     * @param term      expression term
+     * @param symtab    symbol table
+     * @param lineNo    source line number
+     * @return          resolved integer value
+     */
+    private int resolveTerm(String term, SymbolTable symtab, int lineNo) {
+        if (NumberUtil.isDecimalLiteral(term)) {
+            return Integer.parseInt(term);
+        }
+
+        Integer addr = symtab.get(term);
+        if (addr == null) {
+            throw new RuntimeException(
+                    "Unknown label '" + term + "' at line " + lineNo
+            );
+        }
+        return addr;
+    }
+
+    /**
+     * Evaluate a simple integer expression used as an assembler operand.
+     *
+     * Supported operators:
+     * - plus (+)
+     * - minus (-)
+     *
+     * Supported terms:
+     * - decimal literals
+     * - labels.
+     *
+     * Examples:
+     * - 15
+     * - LOOP
+     * - WORK+5
+     * - CURVAL-WORK
+     * - NUMBERS+3-WORKBASE
+     *
+     * @param token     raw operand token
+     * @param symtab    symbol table
+     * @param lineNo    source line number
+     * @return          evaluated integer result
+     */
+    private int evaluateExpression(String token, SymbolTable symtab, int lineNo) {
+        if (token == null) {
+            throw new RuntimeException("Null operand at line " + lineNo);
+        }
+
+        // remove all whitespace so forms like "WORK + 5" also work
+        String expr = token.replaceAll("\\s+", "");
+        if (expr.isEmpty()) {
+            throw new RuntimeException("Empty operand at line " + lineNo);
+        }
+
+        int total = 0;
+        int sign = 1;
+        int i = 0;
+
+        // allow an optional leading + or -.
+        if (expr.charAt(0) == '+') {
+            i++;
+        } else if (expr.charAt(0) == '-') {
+            sign = -1;
+            i++;
+        }
+
+        StringBuilder term = new StringBuilder();
+
+        while (i <= expr.length()) {
+            boolean end = (i == expr.length());
+            char ch = end ? '\0' : expr.charAt(i);
+
+            // end of term when we hit +, -, or the end of the string
+            if (end || ch == '+' || ch == '-') {
+                if (term.length() == 0) {
+                    throw new RuntimeException(
+                            "Malformed expression '" + token + "' at line " + lineNo
+                    );
+                }
+
+                int value = resolveTerm(term.toString(), symtab, lineNo);
+                total += sign * value;
+
+                term.setLength(0);
+
+                if (!end) {
+                    sign = (ch == '+') ? 1 : -1;
+                }
+            } else {
+                term.append(ch);
+            }
+            i++;
+        }
+        return total;
+    }
+
+    /**
+     * Parse one token as an integer expression.
+     *
+     * Supported forms:
+     * - decimal literal: 15
+     * - label: LOOP
+     * - label +/- decimal: WORK+5, WORK-2
+     * - label +/- label: CURVAL-WORK
+     * - chained left-to-right forms: NUMBERS+5-WORKBASE
+     *
+     * @param token     operand token
+     * @param symtab    symbol table
+     * @param lineNo    source line number
+     * @return          resolved integer value
+     */
+    private int parseDecimalOrLabel(String token, SymbolTable symtab, int lineNo) {
+        return evaluateExpression(token, symtab, lineNo);
     }
     
 }

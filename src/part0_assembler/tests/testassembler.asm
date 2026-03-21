@@ -1,0 +1,10 @@
+LOC 0
+        LDX 2,WORKBASEPTR
+        LDR 0,2,CURVAL-WORK
+        HLT
+
+WORKBASEPTR: Data 20
+
+LOC 20
+WORK:   Data 0
+CURVAL: Data 123
