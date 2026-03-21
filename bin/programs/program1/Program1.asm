@@ -34,8 +34,8 @@ ZEROCHAR:    Data 48
 NINECHAR:    Data 57
 MINUSCHAR:   Data 45
 
-NUMBASEPTR:     Data 320
-WORKBASEPTR:    Data 360
+NUMBASEPTR:     Data 480
+WORKBASEPTR:    Data 520
 CODE1PTR:       Data 64
 PARSEPTR:       Data 96
 PARSE2PTR:      Data 128
@@ -45,11 +45,11 @@ SEARCHLPPTR:    Data 224
 RESULTPTR:      Data 256
 PRINTPTR:       Data 288
 PRINT2PTR:      Data 416
-BUFENDPTR:      Data 405
-XBUFPTR:        Data 378
+BUFENDPTR:      Data 565
+XBUFPTR:        Data 538
 
 ; low-memory indirect pointer to WORK[CURX1]
-X1CURPTR:    Data 370
+X1CURPTR:       Data 530
 
 ; =========================================================
 ; MAIN CODE PAGE
@@ -123,7 +123,7 @@ PARSE_LOOP1: LDR 1,0,SPACECHAR
              IN 0,0
              TRR 0,1
              JCC 3,3,TO_PARSE3_FINISH-PARSE1
-             OUT 0,1
+             ; OUT 0,1           ; disable input echo for final Program 1 flow
 
              ; save original character
              STR 0,2,TEMPCHAR-WORK
@@ -329,7 +329,12 @@ SEARCHDONE:  LDX 3,RESULTPTR
 
 LOC 256
 ; Move QUERY into PRINTVAL so the print page can output it
-RESULTPAGE:       LDR 0,2,QUERY-WORK
+RESULTPAGE:      LDR 0,0,SPACECHAR
+                 OUT 0,1
+                 LDR 0,0,SPACECHAR
+                 OUT 0,1
+
+                 LDR 0,2,QUERY-WORK
                  STR 0,2,PRINTVAL-WORK
 
                  ; PRINTMODE = 0 means "printing query"
@@ -362,7 +367,7 @@ RET_AFTER_BEST:  HLT
 ; DATA PAGES
 ; =========================================================
 
-LOC 320
+LOC 480
 NUMBERS:        Data 0
                 Data 0
                 Data 0
@@ -384,7 +389,7 @@ NUMBERS:        Data 0
                 Data 0
                 Data 0
 
-LOC 360
+LOC 520
 WORK:           Data 0    ; COUNT
 MODE:           Data 0    ; 0=list, 1=query
 CURVAL:         Data 0    ; parsed value
@@ -532,7 +537,7 @@ RET_PRINT_BEST:     LDX 3,RESULTPTR
 ; BUFFER PAGE
 ; =========================================================
 
-LOC 400
+LOC 560
 PRINTBUF:       Data 0
                 Data 0
                 Data 0
