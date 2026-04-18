@@ -126,7 +126,7 @@ Use it to:
 2. Run `java -cp out simulator.tests.InstructionTests` for instructions.
 
 ## Program 2 Workflow
-1. Assemble `/src/programs/program1/Program2.asm`
+1. Assemble `/src/programs/program2/Program2.asm`
 2. Launch GUI `java -jar CSCI6461_Group9_Project.jar`
 3. IPL `/txt/Program2_load.txt`
 4. Click Run
