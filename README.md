@@ -7,12 +7,11 @@
 - Git
 - Any CLI provided by windows
 
-## Part 2 Overview
-- Build a working simulator for the CSCI 6461 machine that can correctly assemble, load, and execute programs through an operator-style console. 
-- The simulator should support the required instruction groups, memory/register operations, console input and printer output, and testing through both instruction-level tests and full assembly programs. 
-- Finish the remaining instructions and develop Program 1 so the machine can read signed integers, store them, search for the closest value, and display the result.
-- Implement cache layer between the CPU and main memory.
-- Design notes located in `/docs/design_notes/Group 9 Project Pt 2 Design Notes.pdf`
+## Part 3 Overview
+- Finish the remaining required instructions for this part, especially CHK and TRAP. - - 
+- Run Program 2 on the simulator from a machine-code load file. 
+- Make sure the simulator can search a paragraph for a word and print the correct result. 
+- Design notes located in `/docs/design_notes/Group 9 Project Pt 3 Design Notes.pdf`
 
 ## Project Structure
 ```
@@ -20,9 +19,10 @@ CSCI6461_GROUP9_PROJECT/
 ├─ .vscode/
 ├─ docs/
 │  ├─ design_notes
-│  │  │  └─ Group 9 Project Pt 2 Design Notes.pdf
+│  │  │  └─ Group 9 Project Pt 3 Design Notes.pdf
 │  ├─ images/
 │  ├─ part1_test cases/
+│  ├─ part2_test cases/
 │  └─ part2_test cases/
 ├─ lib/
 ├─ out/
@@ -30,10 +30,6 @@ CSCI6461_GROUP9_PROJECT/
 │  ├─ part0_assembler/
 │  │  ├─ assembler/
 │  │  ├─ tests/
-│  │  │  ├─ encoder_test.java
-│  │  │  │  opcode_table_test.java
-│  │  │  │  testassembler.asm
-│  │  │  └─ test.asm
 │  │  ├─ AssemblerMain.java
 │  │  ├─ Encoder.java
 │  │  └─ opcode_table.java
@@ -48,8 +44,8 @@ CSCI6461_GROUP9_PROJECT/
 │  │    └─ MemoryTest.java
 │  ├─ programs/
 │  │  ├─ program1/
-│  │  │  ├─ Program1_Test#.asm
-│  │  │  └─ Program1.asm
+│  │  └─ program2/
+│  │     └─ Program2.asm/
 │  └─ Main.java
 └─ txt/
    └─ <asm listings and loads>
@@ -65,8 +61,8 @@ Compiles all source files under `/src/` into `/out/` directory
 ## Assembling Any .asm file
 ```
 java -cp out part0_assembler.AssemblerMain <path to .asm file>
-Example for Program1.asm:
-java -cp out part0_assembler.AssemblerMain src/programs/program1/Program1.asm
+Example for Program2.asm:
+java -cp out part0_assembler.AssemblerMain src/programs/program1/Program2.asm
 ```
 This generates a listing file and load file in /txt/ used for simulator
 
@@ -115,7 +111,7 @@ Cache showin in the `Cache Content` panel and shows:
 2. Click IPL
 3. Selected the generated *_load.txt from the `/txt/` folder
 4. The simulator loads the file into memory and sets the PC to the start address from the listing when available.
-5. Type input into the Console (test cases provided in `/docs/part2_test_cases/`)
+5. Type input into the Console (test cases provided in `/docs/part3_test_cases/`)
 6. Use Run or Single Step to execute the program
 
 ## How to Inspect Program Results
@@ -132,27 +128,16 @@ Use it to:
 - check CPU changes after edits
 - catch regressions before running full assembly programs
 
-## CacheTests.java
-Cache tests for `Cache.java` and `CacheLine.java`.
-
-Use it to:
-- verify basic cache behavior
-- check read hits/misses
-- check write-through behavior
-- check write-allocate behavior
-- check FIFO replacement
-
 ### Run the tests
 1. Compile first
 2. Run `java -cp out simulator.tests.InstructionTests` for instructions.
-3. Run `java -cp out simulator.tests.CacheTests` for cache
 
-## Program 1 Workflow
-1. Assemble `/src/programs/program1/Program1.asm`
+## Program 2 Workflow
+1. Assemble `/src/programs/program1/Program2.asm`
 2. Launch GUI `java -jar CSCI6461_Group9_Project.jar`
-3. IPL `/txt/Program1_load.txt`
-4. Enter Program 1 input sequence into Console Input (sequences found in `/docs/part2_test_cases/`)
-5. Click Run
+3. IPL `/txt/Program2_load.txt`
+4. Click Run
+5. Enter Program 2 example tests into Console Input when prompted (sequences found in `/docs/part3_test_cases/`)
 6. Inspect printer output and memeory location as needed
 
 ## Expected Output for InstructionTests.java
@@ -162,6 +147,8 @@ Processor Control Tests
 =====================================================
 [PASS] HLT - CPU should halt and advance PC after fetching HLT
 [PASS] Step ignored after HLT - Second step should be ignored when CPU is halted
+[PASS] TRAP - TRAP should save return PC and jump to handler.
+[PASS] TRAP illegal code - Illegal TRAP code should fault or halt.
 
 =====================================================
 Load / Store Tests
@@ -184,7 +171,7 @@ Load / Store Tests
 Transfer Tests
 =====================================================
 [PASS] JZ taken - PC should branch to EA when tested register is zero
-[PASS] JZ not taken - PC should stay at sequential next instruction when register is nonzero      
+[PASS] JZ not taken - PC should stay at sequential next instruction when register is nonzero
 [PASS] JNE taken - PC should branch when register is nonzero
 [PASS] JNE not taken - PC should continue sequentially
 [PASS] JCC taken - PC should branch when CC bit is set
@@ -233,7 +220,7 @@ Shift / Rotate Tests
 =====================================================
 [PASS] SRC left logical - R3 should shift left by 3
 [PASS] SRC right logical - R1 should shift right logically by 2
-[PASS] SRC right arithmetic - R1 should shift right arithmetically by 2 with sign extension       
+[PASS] SRC right arithmetic - R1 should shift right arithmetically by 2 with sign extension
 [PASS] SRC zero count - R0 should remain unchanged when count is 0
 [PASS] RRC left - R2 should rotate left by 1
 [PASS] RRC right - R2 should rotate right by 1
@@ -248,35 +235,14 @@ I/O Tests
 [PASS] IN invalid device - CPU should halt on invalid IN device
 [PASS] OUT invalid device - CPU should halt on invalid OUT device
 [PASS] IN wait restores PC - IN should wait at the same PC when no input is available
+[PASS] CHK printer ready - CHK should report printer ready.
+[PASS] CHK keyboard no input - CHK should report keyboard not ready when no input is available.
+[PASS] CHK invalid device - CHK on an unsupported device should fault or halt.
 
 =====================================================
 Instruction Test Summary
 =====================================================
-Passed: 64
-Failed: 0
-```
-
-## Expected Output for CacheTests.java
-```
-=====================================================
-Cache Tests
-=====================================================
-[PASS] read miss then hit - values
-[PASS] read miss then hit - counters
-[PASS] write hit updates backing memory
-[PASS] write hit updates cached value
-[PASS] write hit counter behavior
-[PASS] write miss updates backing memory
-[PASS] write miss allocates line
-[PASS] write miss counter behavior
-[PASS] fifo replacement reread value
-[PASS] fifo replacement counters
-[PASS] fifo replacement no false hit
-
-=====================================================
-Cache Test Summary
-=====================================================
-Passed: 11
+Passed: 69
 Failed: 0
 ```
 
