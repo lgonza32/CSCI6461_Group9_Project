@@ -23,7 +23,7 @@ public final class opcode_table {
     public opcode_table() {
         // Misc instructions
         map.put("HLT",000);
-        // map.put("TRAP",030); // for part III
+        map.put("TRAP",030); 
 
         // Load/Store instructions
         map.put("LDR",001); // Load Register From Memory

@@ -366,6 +366,25 @@ public final class CPU {
                         return "[STEP] JGE not taken (R" + r + " < 0)\n";
                     }
                 }
+                
+                // TRAP (octal 030 => decimal 24)
+                // PC <- MEM[ MEM[0] + trapCode ]
+                case 24 -> { 
+                    int trapCode = addr & 0x1F;
+                    if (trapCode > 15) {
+                        machineFault(1); // illegal TRAP code
+                        return "[FAULT] Illegal TRAP code " + trapCode + "\n";
+                    }
+
+                    cache.write(2, s.getPC());          // save PC+1
+                    int tableBase = cache.read(0);      // location 0 points to trap table
+                    int routineAddr = cache.read(tableBase + trapCode);
+                    s.setPC(routineAddr);
+
+                    return "[STEP] TRAP " + trapCode +
+                        " -> PC <- MEM[ MEM[0] + trapCode ] = " +
+                        Memory.toOct6(routineAddr) + "\n";
+                }
 
                 // -------------------------------------------------
                 // Shift / Rotate INsstructions
@@ -533,6 +552,26 @@ public final class CPU {
 
                     return "[STEP] OUT device 1 <- R" + r
                             + " = " + Memory.toOct6(value) + "\n";
+                }
+
+                // CHK (octal 063 => decimal 51)
+                // Check device status and set R[r] to 1 if ready, 0 if not ready
+                case 51 -> { 
+                    int devid = addr & 0x1F;
+                    int status;
+
+                    switch (devid) {
+                        case 0 -> status = 0; // keyboard readiness not separately implemented
+                        case 1 -> status = 1; // printer is ready
+                        case 2 -> status = 0; // card reader readiness not separately implemented
+                        default -> {
+                            machineFault(0);
+                            return "[FAULT] CHK unsupported device " + devid + "\n";
+                        }
+                    }
+
+                    s.setGPR(r, status);
+                    return "[STEP] CHK R" + r + " <- status " + status + " for device " + devid + "\n";
                 }
 
                 // -------------------------------------------------
@@ -845,5 +884,31 @@ public final class CPU {
      */
     private boolean isValidRxRyPair(int rx, int ry) {
         return (rx == 0 || rx == 2) && (ry == 0 || ry == 2);
+    }
+
+    /**
+     * Handles a machine fault by updating the MFR, saving the current PC,
+     * and transferring control to the machine fault handler routine.
+     * 
+     * @param faultId the machine fault ID:
+     *                0 = reserved memory access
+     *                1 = illegal TRAP code
+     *                2 = illegal operation code
+     *                3 = memory address beyond installed memory
+     */
+    private void machineFault(int faultId) {
+        int mfrValue;
+        switch (faultId) {
+            case 0 -> mfrValue = 0b0001;
+            case 1 -> mfrValue = 0b0010;
+            case 2 -> mfrValue = 0b0100;
+            case 3 -> mfrValue = 0b1000;
+            default -> mfrValue = 0;
+        }
+
+        s.setMFR(mfrValue);
+        cache.write(4, s.getPC());      // save current PC
+        int handler = cache.read(1);    // machine fault handler address
+        s.setPC(handler);
     }
 }

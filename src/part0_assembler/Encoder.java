@@ -282,6 +282,23 @@ public final class Encoder {
     }
 
     /**
+     * Encode a TRAP instruction.
+     *
+     * Format:
+     * TRAP code
+     *
+     * The low 5 bits store the trap code.
+     *
+     * @param trapCode trap code value
+     * @return encoded instruction word
+     */
+    public int encodeTrap(int trapCode) {
+        checkRange("Trap code", trapCode, 0, 31);
+        int opcode = table.get("TRAP");
+        return pack(opcode, 0, 0, 0, trapCode);
+    }
+
+    /**
      * Encodes basic instruction format (OP r, x, address[,I]) and
      * converts instruction into 16-bit code.
      * 

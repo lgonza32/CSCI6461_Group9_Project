@@ -65,6 +65,8 @@ public final class InstructionTests {
         System.out.println("=====================================================");
         testHLT();
         testStepIgnoredAfterHLT();
+        testTRAP();
+        testTRAPIllegalCode();
         System.out.println();
     }
 
@@ -203,6 +205,9 @@ public final class InstructionTests {
         testINInvalidDevice();
         testOUTInvalidDevice();
         testINWaitRestoresPC();
+        testCHKPrinterReady();
+        testCHKKeyboardNoInput();
+        testCHKInvalidDevice();
         System.out.println();
     }
 
@@ -271,6 +276,65 @@ public final class InstructionTests {
                 && s.getPC() == pcAfterHalt
                 && log.toLowerCase().contains("halted"),
             "Second step should be ignored when CPU is halted"
+        );
+    }
+
+    /**
+     * TRAP 3 =>
+     * - store PC+1 into memory location 2
+     * - read trap table base from memory[0]
+     * - jump to memory[ memory[0] + 3 ]
+     */
+    private static void testTRAP() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeTrap(3);
+
+        // reserve location 0 for trap table base
+        mem.write(0, 40);
+        mem.write(43, 100); // tableBase + 3 -> handler address
+
+        mem.write(10, instr);
+        s.setPC(10);
+
+        String log = cpu.step();
+
+        check(
+            "TRAP",
+            !cpu.isHalted()
+                && mem.read(2) == 11
+                && s.getPC() == 100,
+            "TRAP should save return PC and jump to handler."
+        );
+    }
+
+    /**
+     * TRAP illegal code:
+     * If CPU treats codes > 15 as illegal, it should fault/halt and set MFR.
+     *
+     * Since the instruction field is 5 bits wide, this test uses 31 as an illegal code.
+     */
+    private static void testTRAPIllegalCode() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeTrap(31);
+
+        mem.write(10, instr);
+        s.setPC(10);
+
+        String log = cpu.step();
+
+        check(
+            "TRAP illegal code",
+            cpu.isHalted()
+                || s.getMFR() != 0
+                || log.toLowerCase().contains("fault")
+                || log.toLowerCase().contains("illegal"),
+            "Illegal TRAP code should fault or halt."
         );
     }
 
@@ -1895,6 +1959,92 @@ public final class InstructionTests {
                 && s.getGPR(1) == 0
                 && log.toLowerCase().contains("waiting"),
             "IN should wait at the same PC when no input is available"
+        );
+    }
+
+    /**
+     * CHK R1,1 => R1 <- printer status
+     *
+     * Expected convention for this simulator:
+     * - printer is ready, so status should be 1
+     * - CHK should not halt and should advance PC
+     */
+    private static void testCHKPrinterReady() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeIO("CHK", 1, 1); // CHK R1, device 1 (printer)
+
+        mem.write(0, instr);
+        s.setPC(0);
+
+        String log = cpu.step();
+
+        check(
+            "CHK printer ready",
+            !cpu.isHalted()
+                && s.getPC() == 1
+                && s.getGPR(1) == 1,
+            "CHK should report printer ready."
+        );
+    }
+
+    /**
+     * CHK keyboard with no input available:
+     * CHK R0,0 => R0 <- keyboard status
+     *
+     * Expected convention for this simulator:
+     * - no input available, so status should be 0
+     */
+    private static void testCHKKeyboardNoInput() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+
+        CPU cpu = newCPU(mem, s, () -> -1, value -> {});
+
+        int instr = ENCODER.encodeIO("CHK", 0, 0);
+
+        mem.write(0, instr);
+        s.setPC(0);
+
+        String log = cpu.step();
+
+        check(
+            "CHK keyboard no input",
+            !cpu.isHalted()
+                && s.getPC() == 1
+                && s.getGPR(0) == 0,
+            "CHK should report keyboard not ready when no input is available."
+        );
+    }
+
+    /**
+     * CHK invalid device:
+     * CHK R2,31 => should fault/halt in current simulator design
+     *
+     * This test assumes unsupported devices produce a fault or halt.
+     * If you later implement devices 3..31, update this expectation.
+     */
+    private static void testCHKInvalidDevice() {
+        Memory mem = new Memory();
+        MachineState s = new MachineState();
+        CPU cpu = newCPU(mem, s);
+
+        int instr = ENCODER.encodeIO("CHK", 2, 31);
+
+        mem.write(0, instr);
+        s.setPC(0);
+
+        String log = cpu.step();
+
+        check(
+            "CHK invalid device",
+            cpu.isHalted()
+                || s.getMFR() != 0
+                || log.toLowerCase().contains("fault")
+                || log.toLowerCase().contains("invalid"),
+            "CHK on an unsupported device should fault or halt."
         );
     }
 
