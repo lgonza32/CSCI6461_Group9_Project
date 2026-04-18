@@ -1,0 +1,218 @@
+; =========================================================
+; Program2.asm
+;
+; Flow:
+; 1. Read the paragraph already stored in memory
+; 2. Print the paragraph to the console printer
+; 3. Halt after the paragraph is fully printed
+;
+; Implementation notes:
+; - Uses base-address indexing because the instruction Address
+;   field is only 5 bits.
+; - X1 is used as the moving pointer into the PARAGRAPH page.
+; - X2 is reserved for the WORK page base.
+; - X3 is used as the active code-page base for jumps between
+;   the main page and the print page.
+; =========================================================
+
+                LOC 0
+
+000000  102112  BOOT: LDX 1,PARABASEPTR ;Load X1 with base address of PARAGRAPH page
+000001  102213  LDX 2,WORKBASEPTR ;Load X2 with base address of WORK page
+000002  102314  LDX 3,CODE1PTR ;Load X3 with base address of main code page
+
+            ; Save the current X1 value into WORK[CURX1] so the program
+            ; can increment and reload the paragraph pointer through memory.
+000003  104156  STX 1,X1CURPTR,1
+
+            ; jump into main code page base
+000004  026300  JMA 3,0
+
+000005  000000  ZERO: Data 0
+000006  000001  ONE: Data 1
+000007  000040  SPACECHAR: Data 32
+000010  000056  PERIODCHAR: Data 46
+000011  000012  NEWLINECHAR: Data 10
+
+000012  000740  PARABASEPTR: Data 480
+000013  001154  WORKBASEPTR: Data 620
+000014  000100  CODE1PTR: Data 64
+000015  000140  PRINTPTR: Data 96
+
+; low-memory indirect pointer to WORK[CURX1]
+000016  001166  X1CURPTR: Data 630
+
+; =========================================================
+; MAIN CODE PAGE
+; Responsibilities:
+; - initialize print flow
+; - jump to the print page
+; - halt after printing completes
+; =========================================================
+
+                LOC 64
+000100  102112  CODE1: LDX 1,PARABASEPTR ;Reset X1 to start of paragraph
+000101  104156  STX 1,X1CURPTR,1 ;Save current paragraph pointer in WORK[CURX1]
+
+            ; jump to print page
+000102  102315  LDX 3,PRINTPTR
+000103  026300  JMA 3,0
+
+000104  000000  RET_PRINT: HLT
+
+; =========================================================
+; PRINT PAGE
+; Responsibilities:
+; - load one character at a time from the paragraph
+; - stop at the 0 sentinel
+; - print each character to the console printer
+; =========================================================
+
+                LOC 96
+000140  102156  PRINTPAGE: LDX 1,X1CURPTR,1 ;reload current paragraph pointer into X1
+
+            ; R0 <- MEM[X1]
+000141  002100  PRINTLOOP: LDR 0,1,0
+
+            ; stop when sentinel 0 is reached
+000142  020312  JZ 0,3,PRINTDONE-PRINTPAGE
+
+            ; print the current character
+000143  144001  OUT 0,1
+
+            ; increment X1 properly:
+            ; save X1 -> WORK[CURX1]
+000144  104156  STX 1,X1CURPTR,1
+
+            ; R0 <- WORK[CURX1]
+000145  002056  LDR 0,0,X1CURPTR,1
+000146  014001  AIR 0,1
+000147  004056  STR 0,0,X1CURPTR,1
+000150  102156  LDX 1,X1CURPTR,1
+
+000151  026301  JMA 3,PRINTLOOP-PRINTPAGE
+
+000152  102314  PRINTDONE: LDX 3,CODE1PTR
+000153  026304  JMA 3,RET_PRINT-CODE1
+
+; =========================================================
+; PARAGRAPH PAGE
+; Stored as ASCII decimal values, one character per word.
+; Ends with 0 sentinel.
+; =========================================================
+
+                LOC 480
+000740  000111  PARAGRAPH: Data 73 ;I
+000741  000040  Data 32 ;space
+000742  000103  Data 67 ;C
+000743  000114  Data 76 ;L
+000744  000111  Data 73 ;I
+000745  000115  Data 77 ;M
+000746  000102  Data 66 ;B
+000747  000056  Data 46 ;.
+000750  000012  Data 10 ;newline
+
+000751  000115  Data 77 ;M
+000752  000131  Data 89 ;Y
+000753  000040  Data 32 ;space
+000754  000115  Data 77 ;M
+000755  000117  Data 79 ;O
+000756  000115  Data 77 ;M
+000757  000040  Data 32 ;space
+000760  000122  Data 82 ;R
+000761  000125  Data 85 ;U
+000762  000116  Data 78 ;N
+000763  000123  Data 83 ;S
+000764  000056  Data 46 ;.
+000765  000012  Data 10 ;newline
+
+000766  000115  Data 77 ;M
+000767  000131  Data 89 ;Y
+000770  000040  Data 32 ;space
+000771  000104  Data 68 ;D
+000772  000101  Data 65 ;A
+000773  000104  Data 68 ;D
+000774  000040  Data 32 ;space
+000775  000102  Data 66 ;B
+000776  000111  Data 73 ;I
+000777  000113  Data 75 ;K
+001000  000105  Data 69 ;E
+001001  000123  Data 83 ;S
+001002  000056  Data 46 ;.
+001003  000012  Data 10 ;newline
+
+001004  000115  Data 77 ;M
+001005  000131  Data 89 ;Y
+001006  000040  Data 32 ;space
+001007  000123  Data 83 ;S
+001010  000111  Data 73 ;I
+001011  000123  Data 83 ;S
+001012  000124  Data 84 ;T
+001013  000105  Data 69 ;E
+001014  000122  Data 82 ;R
+001015  000040  Data 32 ;space
+001016  000123  Data 83 ;S
+001017  000111  Data 73 ;I
+001020  000116  Data 78 ;N
+001021  000107  Data 71 ;G
+001022  000123  Data 83 ;S
+001023  000056  Data 46 ;.
+001024  000012  Data 10 ;newline
+
+001025  000115  Data 77 ;M
+001026  000131  Data 89 ;Y
+001027  000040  Data 32 ;space
+001030  000107  Data 71 ;G
+001031  000122  Data 82 ;R
+001032  000101  Data 65 ;A
+001033  000116  Data 78 ;N
+001034  000104  Data 68 ;D
+001035  000120  Data 80 ;P
+001036  000101  Data 65 ;A
+001037  000040  Data 32 ;space
+001040  000110  Data 72 ;H
+001041  000111  Data 73 ;I
+001042  000113  Data 75 ;K
+001043  000105  Data 69 ;E
+001044  000123  Data 83 ;S
+001045  000056  Data 46 ;.
+001046  000012  Data 10 ;newline
+
+001047  000115  Data 77 ;M
+001050  000131  Data 89 ;Y
+001051  000040  Data 32 ;space
+001052  000107  Data 71 ;G
+001053  000122  Data 82 ;R
+001054  000101  Data 65 ;A
+001055  000116  Data 78 ;N
+001056  000104  Data 68 ;D
+001057  000115  Data 77 ;M
+001060  000101  Data 65 ;A
+001061  000040  Data 32 ;space
+001062  000107  Data 71 ;G
+001063  000101  Data 65 ;A
+001064  000122  Data 82 ;R
+001065  000104  Data 68 ;D
+001066  000105  Data 69 ;E
+001067  000116  Data 78 ;N
+001070  000123  Data 83 ;S
+001071  000056  Data 46 ;.
+
+001072  000000  Data 0 ;end sentinel
+
+; =========================================================
+; WORK PAGE
+; =========================================================
+
+                LOC 620
+001154  000000  WORK: Data 0 ;[0] UNUSED
+001155  000000  Data 0 ;[1] UNUSED
+001156  000000  Data 0 ;[2] UNUSED
+001157  000000  Data 0 ;[3] UNUSED
+001160  000000  Data 0 ;[4] UNUSED
+001161  000000  Data 0 ;[5] UNUSED
+001162  000000  Data 0 ;[6] UNUSED
+001163  000000  Data 0 ;[7] UNUSED
+001164  000000  Data 0 ;[8] UNUSED
+001165  000000  Data 0 ;[9] UNUSED
+001166  000000  CURX1: Data 0 ;[10] CURX1: saved current X1 pointer value
