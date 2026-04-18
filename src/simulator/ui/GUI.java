@@ -82,7 +82,7 @@ public final class GUI extends JFrame {
      * Private fields for areas of the simulator
      */
     private final JTextArea cacheArea = new JTextArea(12, 28);
-    private final JTextArea printerArea = new JTextArea(6, 28);
+    private final JTextArea printerArea = new JTextArea(12, 28);
     private final JTextField consoleInputField = new JTextField(28);
     private final JTextField programFileField = new JTextField(40);
     private final JTextArea consoleArea = new JTextArea(16, 60);
@@ -201,12 +201,12 @@ public final class GUI extends JFrame {
         // cache display
         c.gridx = 0;
         c.gridy = 0;
-        c.weighty = 1;
+        c.weighty = 0.55;
         right.add(buildCachePanel(), c);
 
         // Printer display
         c.gridy = 1;
-        c.weighty = 0;
+        c.weighty = 0.35;
         right.add(buildPrinterPanel(), c);
 
         // console input
