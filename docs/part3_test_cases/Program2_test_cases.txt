@@ -1,0 +1,148 @@
+Program 2 Test Cases
+
+Overview:
+This document lists the main test cases used to verify Program2.asm.
+
+Current Program 2 behavior:
+
+1. Reads a paragraph of 6 sentences already stored in memory
+2. Prints the paragraph to the console printer
+3. Prints the prompt INPUT WORD SEARCH
+4. Reads 1 input word from console input
+5. Searches the paragraph for a whole-word exact match
+6. If found, prints:
+   - FOUND
+   - the matched word
+   - the sentence number
+   - the word number in the sentence
+7. If not found, prints:
+   - NOT FOUND
+
+How to run
+
+1. Assemble:
+   java -cp out part0_assembler.AssemblerMain src/programs/program2/Program2.asm
+
+2. Start the simulator:
+   java -cp out Main
+
+3. In the GUI:
+   - Click IPL
+   - Select txt/Program2_load.txt
+   - Paste one full test input into Console Input
+   - Make sure you copy and paste the space after the last character
+   - Click Run
+
+Memory locations used for verification
+PARAGRAPH page
+- Base address: decimal 480, octal 740
+- Stored paragraph begins at 740 octal
+
+WORK page
+Base address: decimal 700, octal 1274
+
+Important fields:
+- 1314 = SENTNUM
+- 1315 = WORDNUM
+- 1320 = INWORDFLAG
+- 1312 = MATCHFLAG
+
+Use Set -> MAR and then Load / Load+ in the GUI to inspect these values.
+
+Test Case 1: Exact word match in sentence 2
+Input
+MOM 
+
+Expected behavior
+- Program halts normally
+- Word is found
+- Printer shows FOUND
+- Printer reprints MOM
+- Sentence number is 2
+- Word number is 2
+
+Expected printer result
+- FOUND
+- MOM
+- 2
+- 2
+
+Test Case 2: Exact word match in sentence 1
+Input
+I 
+
+Expected behavior
+- Program halts normally
+- Word is found
+- Printer shows FOUND
+- Printer reprints I
+- Sentence number is 1
+- Word number is 1
+
+Expected printer result
+- FOUND
+- I
+- 1
+- 1
+
+Test Case 3: Exact word match in later sentence
+Input
+GARDENS 
+
+Expected behavior
+- Program halts normally
+- Word is found
+- Printer shows FOUND
+- Printer reprints GARDENS
+- Sentence number is 6
+- Word number is 3
+
+Expected printer result
+- FOUND
+- GARDENS
+- 6
+- 3
+
+Test Case 4: Word not found
+Input
+DOG 
+
+Expected behavior
+- Program halts normally
+- Word is not found
+- Printer shows NOT FOUND
+
+Expected printer result
+- NOT FOUND
+Test Case 5: Prefix is not a whole-word match
+Input
+GRAND 
+
+Expected behavior
+- Program halts normally
+- Program does not match GRANDPA or GRANDMA
+- Printer shows NOT FOUND
+
+Expected printer result
+- NOT FOUND
+
+Manual paragraph verification
+To verify that the paragraph was loaded correctly:
+1. Set MAR to octal 740
+2. Click Load
+3. Use Load+ to walk through the paragraph entries
+
+This checks the PARAGRAPH page directly.
+
+Notes
+- Input words must be followed by a trailing space.
+- Matching is case-sensitive for the stored character data currently used by Program2.asm.
+- Search is for whole-word exact matches, not prefixes.
+- The paragraph currently used is:
+
+  I CLIMB.
+  MY MOM RUNS.
+  MY DAD BIKES.
+  MY SISTER SINGS.
+  MY GRANDPA HIKES.
+  MY GRANDMA GARDENS.

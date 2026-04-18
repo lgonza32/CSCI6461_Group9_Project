@@ -1,0 +1,116 @@
+Program 2 Demo Notes
+
+Goal
+Program2.asm demonstrates the main Program 2 workflow for the simulator:
+1. Print a paragraph of 6 sentences from memory
+2. Prompt the user for a word
+3. Search the paragraph for a whole-word exact match
+4. If found, print:
+   - FOUND
+   - the matched word
+   - the sentence number
+   - the word number in the sentence
+5. If not found, print:
+   - NOT FOUND
+
+Files
+- Source file: src/programs/program2/Program2.asm
+- Assembler output:
+  - txt/Program2_listing.txt
+  - txt/Program2_load.txt
+
+Build and run
+1) Assemble Program 2
+From the project root:
+java -cp out part0_assembler.AssemblerMain src/programs/program2/Program2.asm
+
+2) Start the simulator GUI
+java -cp out Main
+
+3) Load the program
+In the simulator:
+- Click IPL
+- Select txt/Program2_load.txt
+
+4) Run a test
+- Paste one full input word into Console Input
+- Include a trailing space after the word
+- Click Run
+
+Recommended demo sequence
+
+Demo 1: Found word in sentence 2
+Use:
+MOM 
+
+Show:
+- the paragraph prints first
+- the prompt INPUT WORD SEARCH appears
+- the program halts normally
+- FOUND is printed
+- MOM is reprinted
+- sentence number is 2
+- word number is 2
+
+Demo 2: Found word in sentence 1
+Use:
+I 
+
+Show:
+- the program halts normally
+- FOUND is printed
+- I is reprinted
+- sentence number is 1
+- word number is 1
+
+Demo 3: Found word in later sentence
+Use:
+GARDENS 
+
+Show:
+- the program halts normally
+- FOUND is printed
+- GARDENS is reprinted
+- sentence number is 6
+- word number is 3
+
+Demo 4: Word not found
+Use:
+DOG 
+
+Show:
+- the program halts normally
+- NOT FOUND is printed
+
+How to inspect memory in the GUI
+
+Important WORK addresses
+Set MAR in octal, then use Load:
+- 1314 = SENTNUM
+- 1315 = WORDNUM
+- 1320 = INWORDFLAG
+- 1312 = MATCHFLAG
+
+PARAGRAPH page
+- Base = 740 octal
+- Use Load+ to walk through the stored paragraph contents
+Use this to confirm the paragraph is loaded and to verify search state if needed.
+
+Search behavior
+- Searches for a whole-word exact match
+- Does not treat prefixes as matches
+- Example: GRAND should not match GRANDPA
+- Updates sentence and word counters while scanning
+
+Notes
+- Every input word must be followed by a trailing space.
+- The current paragraph is stored directly in Program2.asm.
+- Matching is case-sensitive with the current stored character values.
+- The expected paragraph is:
+
+  I CLIMB.
+  MY MOM RUNS.
+  MY DAD BIKES.
+  MY SISTER SINGS.
+  MY GRANDPA HIKES.
+  MY GRANDMA GARDENS.
