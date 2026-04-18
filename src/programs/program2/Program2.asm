@@ -57,6 +57,7 @@ FOUNDPTR:       Data 288
 NOTFOUNDPTR:    Data 320
 CMPEXTPTR:      Data 384
 SEARCH2PTR:     Data 416
+FOUNDEXTPTR:    Data 448
 
 ; low-memory indirect pointers into WORK page / text pages
 X1CURPTR:       Data 710
@@ -65,7 +66,6 @@ SCANPTRPTR:     Data 712
 WORDPTRPTR:     Data 713
 CMPINPTRPTR:    Data 715
 FOUNDTXTPTR:    Data 760
-NOTFDBASEPTR:   Data 770
 
 ; =========================================================
 ; MAIN CODE PAGE
@@ -257,14 +257,7 @@ SEARCHLOOP:     LDR 0,1,0
 ADVLETTERLOCAL: LDX 3,SEARCH2PTR
                 JMA 3,ADVANCECHAR2-SEARCH2PAGE
 
-RET_COMPARE:    LDR 0,2,MATCHFLAG-WORK
-                JZ 0,3,ADVLETTERLOCAL-SEARCHPAGE
-
-                ; match found, print FOUND page immediately
-                LDX 3,FOUNDPTR
-                JMA 3,0
-
-FAILLOCAL:      LDX 3,NOTFOUNDPTR
+STARTLOCAL:     LDX 3,SEARCH2PTR
                 JMA 3,0
 
 NEWLINELOCAL:   LDX 3,SEARCH2PTR
@@ -276,7 +269,14 @@ SPACELOCAL:     LDX 3,SEARCH2PTR
 PERIODLOCAL:    LDX 3,SEARCH2PTR
                 JMA 3,HANDLEPERIOD2-SEARCH2PAGE
 
-STARTLOCAL:     LDX 3,SEARCH2PTR
+RET_COMPARE:    LDR 0,2,MATCHFLAG-WORK
+                JZ 0,3,ADVLETTERLOCAL-SEARCHPAGE
+
+                ; match found, print FOUND page immediately
+                LDX 3,FOUNDPTR
+                JMA 3,0
+
+FAILLOCAL:      LDX 3,NOTFOUNDPTR
                 JMA 3,0
 
 ; =========================================================
@@ -300,6 +300,7 @@ CMPLOOP:        LDR 0,1,0
                 TRR 0,1
                 JCC 3,3,CMPEQUAL-COMPAREPAGE
 
+                LDX 2,WORKBASEPTR
                 LDX 3,SEARCHPTR
                 JMA 3,RET_COMPARE-SEARCHPAGE
 
@@ -319,6 +320,7 @@ CHECKBOUND:     LDR 1,0,SPACECHAR
                 TRR 0,1
                 JCC 3,3,TO_CMPSUCCESS-COMPAREPAGE
 
+                LDX 2,WORKBASEPTR
                 LDX 3,SEARCHPTR
                 JMA 3,RET_COMPARE-SEARCHPAGE
 
@@ -332,16 +334,15 @@ TO_CMPSUCCESS:  LDX 3,CMPEXTPTR
 ; FOUND PAGE
 ; Responsibilities:
 ; - print FOUND
-; - print sentence number
-; - print word number
-; - halt
+; - reprint matched word
+; - jump to found extension page for sentence/word output
 ; =========================================================
 
 LOC 288
 FOUNDPAGE:      LDX 1,FOUNDTXTPTR
 
 FOUNDLOOP:      LDR 0,1,0
-                JZ 0,3,PRINTSENTNUM-FOUNDPAGE
+                JZ 0,3,PRINTFOUNDWORD-FOUNDPAGE
                 OUT 0,1
 
                 STX 1,X1CURPTR,1
@@ -351,31 +352,57 @@ FOUNDLOOP:      LDR 0,1,0
                 LDX 1,X1CURPTR,1
                 JMA 3,FOUNDLOOP-FOUNDPAGE
 
-PRINTSENTNUM:   LDR 0,0,NEWLINECHAR
+PRINTFOUNDWORD: LDR 0,0,NEWLINECHAR
                 OUT 0,1
 
-                ; print sentence digit as ASCII: PERIODCHAR(46) + 2 = '0'(48)
-                LDR 0,2,SENTNUM-WORK
-                AMR 0,0,PERIODCHAR
-                AIR 0,2
+                ; reload X1 from saved paragraph word start
+                LDX 1,WORDPTRPTR,1
+
+WORDOUTLOOP:    LDR 0,1,0
+
+                ; stop printing at space
+                LDR 1,0,SPACECHAR
+                TRR 0,1
+                JCC 3,3,TO_FOUNDEXT-FOUNDPAGE
+
+                ; stop printing at period
+                LDR 1,0,PERIODCHAR
+                TRR 0,1
+                JCC 3,3,TO_FOUNDEXT-FOUNDPAGE
+
+                ; stop printing at zero
+                JZ 0,3,TO_FOUNDEXT-FOUNDPAGE
+
                 OUT 0,1
 
-                LDR 0,0,NEWLINECHAR
-                OUT 0,1
+                STX 1,X1CURPTR,1
+                LDR 0,0,X1CURPTR,1
+                AIR 0,1
+                STR 0,0,X1CURPTR,1
+                LDX 1,X1CURPTR,1
+                JMA 3,WORDOUTLOOP-FOUNDPAGE
 
-                LDR 0,2,WORDNUM-WORK
-                AMR 0,0,PERIODCHAR
-                AIR 0,2
-                OUT 0,1
-
-FOUNDDONE:      HLT
+TO_FOUNDEXT:    LDX 3,FOUNDEXTPTR
+                JMA 3,0
 
 ; =========================================================
 ; NOT FOUND PAGE
+; Responsibilities:
+; - print NOT FOUND
+; - halt
 ; =========================================================
 
 LOC 320
-NOTFPG:         LDX 1,NOTFDBASEPTR
+
+; X1 <- base of this page
+NOTFPG:         LDX 1,NOTFOUNDPTR
+                STX 1,X1CURPTR,1
+
+                ; advance X1 to start of inline NOT FOUND text
+                LDR 0,0,X1CURPTR,1
+                AIR 0,11
+                STR 0,0,X1CURPTR,1
+                LDX 1,X1CURPTR,1
 
 NOTFLOOP:       LDR 0,1,0
                 JZ 0,3,NOTFDONE-NOTFPG
@@ -386,10 +413,20 @@ NOTFLOOP:       LDR 0,1,0
                 AIR 0,1
                 STR 0,0,X1CURPTR,1
                 LDX 1,X1CURPTR,1
-
                 JMA 3,NOTFLOOP-NOTFPG
 
 NOTFDONE:       HLT
+
+NOTFDTXTLOCAL:  Data 78
+                Data 79
+                Data 84
+                Data 32
+                Data 70
+                Data 79
+                Data 85
+                Data 78
+                Data 68
+                Data 0
 
 ; =========================================================
 ; SKIP PAGE
@@ -440,11 +477,11 @@ SEARCHFAIL2:    LDX 3,NOTFOUNDPTR
 ; =========================================================
 
 LOC 384
-CMPEXTPAGE:     STX 1,WORDPTRPTR,1
-                LDR 0,0,WORDPTRPTR,1
+CMPEXTPAGE:     STX 1,X1CURPTR,1
+                LDR 0,0,X1CURPTR,1
                 AIR 0,1
-                STR 0,0,WORDPTRPTR,1
-                LDX 1,WORDPTRPTR,1
+                STR 0,0,X1CURPTR,1
+                LDX 1,X1CURPTR,1
 
                 ; advance input pointer using X2
                 STX 2,CMPINPTRPTR,1
@@ -455,7 +492,8 @@ CMPEXTPAGE:     STX 1,WORDPTRPTR,1
                 LDX 3,CMPPTRLBL
                 JMA 3,CMPLOOP-COMPAREPAGE
 
-CMPSUCCESS2:    LDR 0,0,ZERO
+CMPSUCCESS2:    LDX 2,WORKBASEPTR
+                LDR 0,0,ZERO
                 AIR 0,1
                 STR 0,2,MATCHFLAG-WORK
 
@@ -523,6 +561,34 @@ ADVANCECHAR2:   STX 1,SCANPTRPTR,1
                 LDX 1,SCANPTRPTR,1
                 LDX 3,SEARCHPTR
                 JMA 3,SEARCHLOOP-SEARCHPAGE
+
+; =========================================================
+; FOUND PAGE 2
+; Responsibilities:
+; - print sentence number
+; - print word number
+; - halt
+; =========================================================
+
+LOC 448
+FOUNDEXTPAGE:   LDX 2,WORKBASEPTR
+                LDR 0,0,NEWLINECHAR
+                OUT 0,1
+
+                LDR 0,2,SENTNUM-WORK
+                AMR 0,0,PERIODCHAR
+                AIR 0,2
+                OUT 0,1
+
+                LDR 0,0,NEWLINECHAR
+                OUT 0,1
+
+                LDR 0,2,WORDNUM-WORK
+                AMR 0,0,PERIODCHAR
+                AIR 0,2
+                OUT 0,1
+
+FOUNDDONE2:     HLT
 
 ; =========================================================
 ; PARAGRAPH PAGE
