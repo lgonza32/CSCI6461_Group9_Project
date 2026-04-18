@@ -8,7 +8,7 @@
 - Any CLI provided by windows
 
 ## Part 3 Overview
-- Finish the remaining required instructions for this part, especially CHK and TRAP. - - 
+- Finish the remaining required instructions for this part, especially CHK and TRAP.
 - Run Program 2 on the simulator from a machine-code load file. 
 - Make sure the simulator can search a paragraph for a word and print the correct result. 
 - Design notes located in `/docs/design_notes/Group 9 Project Pt 3 Design Notes.pdf`
