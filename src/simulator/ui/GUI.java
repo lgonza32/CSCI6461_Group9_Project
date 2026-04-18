@@ -488,7 +488,6 @@ public final class GUI extends JFrame {
 
         cacheArea.setEditable(false);
         cacheArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
-        cacheArea.setText("(cache display placeholder)\n");
 
         p.add(new JScrollPane(cacheArea), BorderLayout.CENTER);
         return p;

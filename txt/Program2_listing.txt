@@ -4,61 +4,125 @@
 ; Flow:
 ; 1. Read the paragraph already stored in memory
 ; 2. Print the paragraph to the console printer
-; 3. Halt after the paragraph is fully printed
+; 3. Print the prompt "INPUT WORD SEARCH"
+; 4. Print the prompt "TYPE WORD THEN SPACE"
+; 5. Read one input word into the INPUTBUF page
+; 6. Search the paragraph for a whole-word exact match
+; 7. Print FOUND or NOT FOUND
+; 8. Halt
 ;
 ; Implementation notes:
 ; - Uses base-address indexing because the instruction Address
 ;   field is only 5 bits.
-; - X1 is used as the moving pointer into the PARAGRAPH page.
+; - X1 is used as the moving pointer into the active text page.
 ; - X2 is reserved for the WORK page base.
 ; - X3 is used as the active code-page base for jumps between
-;   the main page and the print page.
+;   the main page, print page, prompt pages, input page,
+;   search page, compare page, and result pages.
 ; =========================================================
 
                 LOC 0
 
 000000  102112  BOOT: LDX 1,PARABASEPTR ;Load X1 with base address of PARAGRAPH page
-000001  102213  LDX 2,WORKBASEPTR ;Load X2 with base address of WORK page
-000002  102314  LDX 3,CODE1PTR ;Load X3 with base address of main code page
+000001  102216  LDX 2,WORKBASEPTR ;Load X2 with base address of WORK page
+000002  102317  LDX 3,CODE1PTR ;Load X3 with base address of main code page
 
             ; Save the current X1 value into WORK[CURX1] so the program
-            ; can increment and reload the paragraph pointer through memory.
-000003  104156  STX 1,X1CURPTR,1
+            ; can increment and reload the active pointer through memory.
+000003  104171  STX 1,X1CURPTR,1
 
             ; jump into main code page base
 000004  026300  JMA 3,0
 
 000005  000000  ZERO: Data 0
-000006  000001  ONE: Data 1
+000006  000600  CMPEXTPTR: Data 384
 000007  000040  SPACECHAR: Data 32
 000010  000056  PERIODCHAR: Data 46
 000011  000012  NEWLINECHAR: Data 10
 
 000012  000740  PARABASEPTR: Data 480
-000013  001154  WORKBASEPTR: Data 620
-000014  000100  CODE1PTR: Data 64
-000015  000140  PRINTPTR: Data 96
+000013  001130  PROMPT1BASEPTR: Data 600
+000014  001154  PROMPT2BASEPTR: Data 620
+000015  001212  INPUTBASEPTR: Data 650
+000016  001274  WORKBASEPTR: Data 700
+000017  000100  CODE1PTR: Data 64
+000020  000140  PRINTPTR: Data 96
+000021  000200  INPUTPTR: Data 128
+000022  000240  PROMPT1PTR: Data 160
+000023  000300  PROMPT2PTR: Data 192
+000024  000340  SEARCHPTR: Data 224
+000025  000400  CMPPTRLBL: Data 256
+000026  000440  FOUNDPTR: Data 288
+000027  000500  NOTFOUNDPTR: Data 320
 
-; low-memory indirect pointer to WORK[CURX1]
-000016  001166  X1CURPTR: Data 630
+; low-memory indirect pointers
+000030  000540  SKIPPTR: Data 352
+000031  001306  X1CURPTR: Data 710
+000032  001307  INPTRPTR: Data 711
+000033  001310  SCANPTRPTR: Data 712
+000034  001311  WORDPTRPTR: Data 713
+000035  001313  CMPINPTRPTR: Data 715
+000036  001370  FOUNDTXTPTR: Data 760
+000037  001402  NOTFDBASEPTR: Data 770
 
 ; =========================================================
 ; MAIN CODE PAGE
 ; Responsibilities:
-; - initialize print flow
+; - initialize paragraph print flow
 ; - jump to the print page
-; - halt after printing completes
+; - jump to the first prompt page
+; - jump to the second prompt page
+; - jump to the input page
+; - jump to the search page
+; - halt after result output completes
 ; =========================================================
 
                 LOC 64
-000100  102112  CODE1: LDX 1,PARABASEPTR ;Reset X1 to start of paragraph
-000101  104156  STX 1,X1CURPTR,1 ;Save current paragraph pointer in WORK[CURX1]
+000100  102112  CODE1: LDX 1,PARABASEPTR
+000101  104171  STX 1,X1CURPTR,1
 
-            ; jump to print page
-000102  102315  LDX 3,PRINTPTR
+                ; jump to print page
+000102  102320  LDX 3,PRINTPTR
 000103  026300  JMA 3,0
 
-000104  000000  RET_PRINT: HLT
+000104  102113  RET_PRINT: LDX 1,PROMPT1BASEPTR ;reset X1 to start of first prompt string
+000105  104171  STX 1,X1CURPTR,1
+
+                ; jump to first prompt page
+000106  102322  LDX 3,PROMPT1PTR
+000107  026300  JMA 3,0
+
+000110  002011  RET_PROMPT1: LDR 0,0,NEWLINECHAR
+000111  144001  OUT 0,1
+
+                ; reset X1 to start of second prompt string
+000112  102114  LDX 1,PROMPT2BASEPTR
+000113  104171  STX 1,X1CURPTR,1
+
+                ; jump to second prompt page
+000114  102323  LDX 3,PROMPT2PTR
+000115  026300  JMA 3,0
+
+000116  002011  RET_PROMPT2: LDR 0,0,NEWLINECHAR
+000117  144001  OUT 0,1
+
+                ; reset X1 to start of input buffer
+000120  102115  LDX 1,INPUTBASEPTR
+000121  104172  STX 1,INPTRPTR,1
+
+                ; jump to input page
+000122  102321  LDX 3,INPUTPTR
+000123  026300  JMA 3,0
+
+000124  102112  RET_INPUT: LDX 1,PARABASEPTR ;reset scan pointer to start of paragraph
+000125  104173  STX 1,SCANPTRPTR,1
+
+000126  002005  LDR 0,0,ZERO
+000127  004216  STR 0,2,MATCHFLAG-WORK
+
+                ; jump to search page
+000130  102324  LDX 3,SEARCHPTR
+000131  026300  JMA 3,0
 
 ; =========================================================
 ; PRINT PAGE
@@ -69,31 +133,345 @@
 ; =========================================================
 
                 LOC 96
-000140  102156  PRINTPAGE: LDX 1,X1CURPTR,1 ;reload current paragraph pointer into X1
+000140  102171  PRINTPAGE: LDX 1,X1CURPTR,1
 
-            ; R0 <- MEM[X1]
 000141  002100  PRINTLOOP: LDR 0,1,0
 
-            ; stop when sentinel 0 is reached
 000142  020312  JZ 0,3,PRINTDONE-PRINTPAGE
 
-            ; print the current character
 000143  144001  OUT 0,1
 
-            ; increment X1 properly:
-            ; save X1 -> WORK[CURX1]
-000144  104156  STX 1,X1CURPTR,1
-
-            ; R0 <- WORK[CURX1]
-000145  002056  LDR 0,0,X1CURPTR,1
+000144  104171  STX 1,X1CURPTR,1
+000145  002071  LDR 0,0,X1CURPTR,1
 000146  014001  AIR 0,1
-000147  004056  STR 0,0,X1CURPTR,1
-000150  102156  LDX 1,X1CURPTR,1
+000147  004071  STR 0,0,X1CURPTR,1
+000150  102171  LDX 1,X1CURPTR,1
 
 000151  026301  JMA 3,PRINTLOOP-PRINTPAGE
 
-000152  102314  PRINTDONE: LDX 3,CODE1PTR
+000152  102317  PRINTDONE: LDX 3,CODE1PTR
 000153  026304  JMA 3,RET_PRINT-CODE1
+
+; =========================================================
+; INPUT PAGE
+; Responsibilities:
+; - read one character at a time from the keyboard
+; - stop when SPACE is entered
+; - stop when NEWLINE is entered
+; - store each character into INPUTBUF
+; - write 0 sentinel at the end of the buffer
+; =========================================================
+
+                LOC 128
+000200  102172  INPUTPAGE: LDX 1,INPTRPTR,1
+
+000201  142000  INPUTLOOP: IN 0,0
+
+                ; stop input on SPACE
+000202  002407  LDR 1,0,SPACECHAR
+000203  164100  TRR 0,1
+000204  025717  JCC 3,3,INPUTDONE-INPUTPAGE
+
+                ; stop input on NEWLINE
+000205  002411  LDR 1,0,NEWLINECHAR
+000206  164100  TRR 0,1
+000207  025717  JCC 3,3,INPUTDONE-INPUTPAGE
+
+                ; store character into input buffer
+000210  004100  STR 0,1,0
+
+                ; increment X1 properly:
+                ; save X1 -> WORK[INPTR]
+000211  104172  STX 1,INPTRPTR,1
+000212  002072  LDR 0,0,INPTRPTR,1
+000213  014001  AIR 0,1
+000214  004072  STR 0,0,INPTRPTR,1
+000215  102172  LDX 1,INPTRPTR,1
+
+000216  026301  JMA 3,INPUTLOOP-INPUTPAGE
+
+000217  002005  INPUTDONE: LDR 0,0,ZERO
+000220  004100  STR 0,1,0
+
+000221  102317  LDX 3,CODE1PTR
+000222  026324  JMA 3,RET_INPUT-CODE1
+
+; =========================================================
+; PROMPT PAGE 1
+; Responsibilities:
+; - print INPUT WORD SEARCH from memory
+; - stop at the 0 sentinel
+; =========================================================
+
+                LOC 160
+000240  102171  PROMPT1PAGE: LDX 1,X1CURPTR,1
+
+000241  002100  PROMPT1LOOP: LDR 0,1,0
+000242  020312  JZ 0,3,PROMPT1DONE-PROMPT1PAGE
+000243  144001  OUT 0,1
+
+000244  104171  STX 1,X1CURPTR,1
+000245  002071  LDR 0,0,X1CURPTR,1
+000246  014001  AIR 0,1
+000247  004071  STR 0,0,X1CURPTR,1
+000250  102171  LDX 1,X1CURPTR,1
+
+000251  026301  JMA 3,PROMPT1LOOP-PROMPT1PAGE
+
+000252  102317  PROMPT1DONE: LDX 3,CODE1PTR
+000253  026310  JMA 3,RET_PROMPT1-CODE1
+
+; =========================================================
+; PROMPT PAGE 2
+; Responsibilities:
+; - print TYPE WORD THEN SPACE from memory
+; - stop at the 0 sentinel
+; =========================================================
+
+                LOC 192
+000300  102171  PROMPT2PAGE: LDX 1,X1CURPTR,1
+
+000301  002100  PROMPT2LOOP: LDR 0,1,0
+000302  020312  JZ 0,3,PROMPT2DONE-PROMPT2PAGE
+000303  144001  OUT 0,1
+
+000304  104171  STX 1,X1CURPTR,1
+000305  002071  LDR 0,0,X1CURPTR,1
+000306  014001  AIR 0,1
+000307  004071  STR 0,0,X1CURPTR,1
+000310  102171  LDX 1,X1CURPTR,1
+
+000311  026301  JMA 3,PROMPT2LOOP-PROMPT2PAGE
+
+000312  102317  PROMPT2DONE: LDX 3,CODE1PTR
+000313  026316  JMA 3,RET_PROMPT2-CODE1
+
+; =========================================================
+; SEARCH PAGE
+; Responsibilities:
+; - scan paragraph one character at a time
+; - skip separators
+; - when a word start is found, compare that paragraph word
+;   against INPUTBUF
+; - jump to FOUND or NOT FOUND result pages
+; =========================================================
+
+                LOC 224
+000340  102173  SEARCHPAGE: LDX 1,SCANPTRPTR,1
+
+000341  002100  SEARCHLOOP: LDR 0,1,0
+000342  020337  JZ 0,3,SEARCHFAIL1-SEARCHPAGE
+
+000343  002407  LDR 1,0,SPACECHAR
+000344  164100  TRR 0,1
+000345  025727  JCC 3,3,ADVANCESEP-SEARCHPAGE
+
+000346  002410  LDR 1,0,PERIODCHAR
+000347  164100  TRR 0,1
+000350  025727  JCC 3,3,ADVANCESEP-SEARCHPAGE
+
+000351  002411  LDR 1,0,NEWLINECHAR
+000352  164100  TRR 0,1
+000353  025727  JCC 3,3,ADVANCESEP-SEARCHPAGE
+
+000354  104174  STX 1,WORDPTRPTR,1
+
+000355  102115  LDX 1,INPUTBASEPTR
+000356  104175  STX 1,CMPINPTRPTR,1
+
+000357  002005  LDR 0,0,ZERO
+000360  004216  STR 0,2,MATCHFLAG-WORK
+
+000361  102325  LDX 3,CMPPTRLBL
+000362  026300  JMA 3,0
+
+000363  002216  RET_COMPARE: LDR 0,2,MATCHFLAG-WORK
+000364  020335  JZ 0,3,TO_SKIPPAGE-SEARCHPAGE
+
+000365  102326  LDX 3,FOUNDPTR
+000366  026300  JMA 3,0
+
+000367  104173  ADVANCESEP: STX 1,SCANPTRPTR,1
+000370  002073  LDR 0,0,SCANPTRPTR,1
+000371  014001  AIR 0,1
+000372  004073  STR 0,0,SCANPTRPTR,1
+000373  102173  LDX 1,SCANPTRPTR,1
+000374  026301  JMA 3,SEARCHLOOP-SEARCHPAGE
+
+000375  102330  TO_SKIPPAGE: LDX 3,SKIPPTR
+000376  026300  JMA 3,0
+
+000377  102327  SEARCHFAIL1: LDX 3,NOTFOUNDPTR
+000400  026300  JMA 3,0
+
+; =========================================================
+; COMPARE PAGE
+; Responsibilities:
+; - compare paragraph word at WORDPTR against INPUTBUF
+; - set MATCHFLAG = 1 only for an exact whole-word match
+; - return to search page
+; =========================================================
+
+                LOC 256
+000400  102174  COMPAREPAGE: LDX 1,WORDPTRPTR,1
+
+000401  002100  CMPLOOP: LDR 0,1,0
+                
+                ; X2 <- current input pointer
+000402  102275  LDX 2,CMPINPTRPTR,1
+
+                ; R1 <- current input character
+000403  002600  LDR 1,2,0
+
+                ; if input char == 0, paragraph must be at a boundary to match
+000404  020711  JZ 1,3,CHECKBOUND-COMPAREPAGE
+
+                ; if chars differ, fail
+000405  164100  TRR 0,1
+000406  025727  JCC 3,3,TO_CMPEXT-COMPAREPAGE
+
+000407  102324  LDX 3,SEARCHPTR
+000410  026323  JMA 3,RET_COMPARE-SEARCHPAGE
+
+000411  002407  CHECKBOUND: LDR 1,0,SPACECHAR
+000412  164100  TRR 0,1
+000413  025731  JCC 3,3,TO_CMPSUCCESS-COMPAREPAGE
+
+000414  002410  LDR 1,0,PERIODCHAR
+000415  164100  TRR 0,1
+000416  025731  JCC 3,3,TO_CMPSUCCESS-COMPAREPAGE
+
+000417  002411  LDR 1,0,NEWLINECHAR
+000420  164100  TRR 0,1
+000421  025731  JCC 3,3,TO_CMPSUCCESS-COMPAREPAGE
+
+000422  002405  LDR 1,0,ZERO
+000423  164100  TRR 0,1
+000424  025731  JCC 3,3,TO_CMPSUCCESS-COMPAREPAGE
+
+000425  102324  LDX 3,SEARCHPTR
+000426  026323  JMA 3,RET_COMPARE-SEARCHPAGE
+
+000427  102306  TO_CMPEXT: LDX 3,CMPEXTPTR
+000430  026300  JMA 3,0
+
+000431  102306  TO_CMPSUCCESS: LDX 3,CMPEXTPTR
+000432  026313  JMA 3,CMPSUCCESS2-CMPEXTPAGE
+
+; =========================================================
+; FOUND PAGE
+; Responsibilities:
+; - print FOUND
+; - halt
+; =========================================================
+
+                LOC 288
+000440  102136  FOUNDPAGE: LDX 1,FOUNDTXTPTR
+
+000441  002100  FOUNDLOOP: LDR 0,1,0
+000442  020312  JZ 0,3,FOUNDDONE-FOUNDPAGE
+000443  144001  OUT 0,1
+
+000444  104171  STX 1,X1CURPTR,1
+000445  002071  LDR 0,0,X1CURPTR,1
+000446  014001  AIR 0,1
+000447  004071  STR 0,0,X1CURPTR,1
+000450  102171  LDX 1,X1CURPTR,1
+
+000451  026301  JMA 3,FOUNDLOOP-FOUNDPAGE
+
+000452  000000  FOUNDDONE: HLT
+
+; =========================================================
+; NOT FOUND PAGE
+; Responsibilities:
+; - print NOT FOUND
+; - halt
+; =========================================================
+
+                LOC 320
+000500  102137  NOTFPG: LDX 1,NOTFDBASEPTR
+
+000501  002100  NOTFLOOP: LDR 0,1,0
+000502  020312  JZ 0,3,NOTFDONE-NOTFPG
+000503  144001  OUT 0,1
+
+000504  104171  STX 1,X1CURPTR,1
+000505  002071  LDR 0,0,X1CURPTR,1
+000506  014001  AIR 0,1
+000507  004071  STR 0,0,X1CURPTR,1
+000510  102171  LDX 1,X1CURPTR,1
+
+000511  026301  JMA 3,NOTFLOOP-NOTFPG
+
+000512  000000  NOTFDONE: HLT
+
+; =========================================================
+; SKIP PAGE
+; =========================================================
+
+                LOC 352
+000540  102173  SKIPPAGE: LDX 1,SCANPTRPTR,1
+
+000541  002100  SKIPLOOP: LDR 0,1,0
+000542  020330  JZ 0,3,SEARCHFAIL2-SKIPPAGE
+
+000543  002407  LDR 1,0,SPACECHAR
+000544  164100  TRR 0,1
+000545  025722  JCC 3,3,ADVANCE2-SKIPPAGE
+
+000546  002410  LDR 1,0,PERIODCHAR
+000547  164100  TRR 0,1
+000550  025722  JCC 3,3,ADVANCE2-SKIPPAGE
+
+000551  002411  LDR 1,0,NEWLINECHAR
+000552  164100  TRR 0,1
+000553  025722  JCC 3,3,ADVANCE2-SKIPPAGE
+
+000554  104173  STX 1,SCANPTRPTR,1
+000555  002073  LDR 0,0,SCANPTRPTR,1
+000556  014001  AIR 0,1
+000557  004073  STR 0,0,SCANPTRPTR,1
+000560  102173  LDX 1,SCANPTRPTR,1
+000561  026301  JMA 3,SKIPLOOP-SKIPPAGE
+
+000562  104173  ADVANCE2: STX 1,SCANPTRPTR,1
+000563  002073  LDR 0,0,SCANPTRPTR,1
+000564  014001  AIR 0,1
+000565  004073  STR 0,0,SCANPTRPTR,1
+
+000566  102324  LDX 3,SEARCHPTR
+000567  026301  JMA 3,SEARCHLOOP-SEARCHPAGE
+
+000570  102327  SEARCHFAIL2: LDX 3,NOTFOUNDPTR
+000571  026300  JMA 3,0
+
+; =========================================================
+; COMPARE PAGE 2
+; =========================================================
+
+                LOC 384
+000600  104174  CMPEXTPAGE: STX 1,WORDPTRPTR,1
+000601  002074  LDR 0,0,WORDPTRPTR,1
+000602  014001  AIR 0,1
+000603  004074  STR 0,0,WORDPTRPTR,1
+000604  102174  LDX 1,WORDPTRPTR,1
+
+                ; advance input pointer using X2
+000605  104275  STX 2,CMPINPTRPTR,1
+000606  002075  LDR 0,0,CMPINPTRPTR,1
+000607  014001  AIR 0,1
+000610  004075  STR 0,0,CMPINPTRPTR,1
+
+000611  102325  LDX 3,CMPPTRLBL
+000612  026301  JMA 3,CMPLOOP-COMPAREPAGE
+
+000613  002005  CMPSUCCESS2: LDR 0,0,ZERO
+000614  014001  AIR 0,1
+000615  004216  STR 0,2,MATCHFLAG-WORK
+
+000616  102324  LDX 3,SEARCHPTR
+000617  026323  JMA 3,RET_COMPARE-SEARCHPAGE
 
 ; =========================================================
 ; PARAGRAPH PAGE
@@ -197,22 +575,124 @@
 001067  000116  Data 78 ;N
 001070  000123  Data 83 ;S
 001071  000056  Data 46 ;.
+001072  000012  Data 10 ;newline
+001073  000000  Data 0 ;end sentinel
 
-001072  000000  Data 0 ;end sentinel
+; =========================================================
+; PROMPT PAGE 1 DATA
+; =========================================================
+
+                LOC 600
+001130  000111  PROMPT1: Data 73 ;I
+001131  000116  Data 78 ;N
+001132  000120  Data 80 ;P
+001133  000125  Data 85 ;U
+001134  000124  Data 84 ;T
+001135  000040  Data 32 ;space
+001136  000127  Data 87 ;W
+001137  000117  Data 79 ;O
+001140  000122  Data 82 ;R
+001141  000104  Data 68 ;D
+001142  000040  Data 32 ;space
+001143  000123  Data 83 ;S
+001144  000105  Data 69 ;E
+001145  000101  Data 65 ;A
+001146  000122  Data 82 ;R
+001147  000103  Data 67 ;C
+001150  000110  Data 72 ;H
+001151  000000  Data 0
+
+; =========================================================
+; PROMPT PAGE 2 DATA
+; =========================================================
+
+                LOC 620
+001154  000124  PROMPT2: Data 84 ;T
+001155  000131  Data 89 ;Y
+001156  000120  Data 80 ;P
+001157  000105  Data 69 ;E
+001160  000040  Data 32 ;space
+001161  000127  Data 87 ;W
+001162  000117  Data 79 ;O
+001163  000122  Data 82 ;R
+001164  000104  Data 68 ;D
+001165  000040  Data 32 ;space
+001166  000124  Data 84 ;T
+001167  000110  Data 72 ;H
+001170  000105  Data 69 ;E
+001171  000116  Data 78 ;N
+001172  000040  Data 32 ;space
+001173  000123  Data 83 ;S
+001174  000120  Data 80 ;P
+001175  000101  Data 65 ;A
+001176  000103  Data 67 ;C
+001177  000105  Data 69 ;E
+001200  000000  Data 0
+
+; =========================================================
+; INPUT BUFFER PAGE
+; =========================================================
+
+                LOC 650
+001212  000000  INPUTBUF: Data 0
+001213  000000  Data 0
+001214  000000  Data 0
+001215  000000  Data 0
+001216  000000  Data 0
+001217  000000  Data 0
+001220  000000  Data 0
+001221  000000  Data 0
+001222  000000  Data 0
+001223  000000  Data 0
+001224  000000  Data 0
+001225  000000  Data 0
+001226  000000  Data 0
+001227  000000  Data 0
+001230  000000  Data 0
+001231  000000  Data 0
 
 ; =========================================================
 ; WORK PAGE
 ; =========================================================
 
-                LOC 620
-001154  000000  WORK: Data 0 ;[0] UNUSED
-001155  000000  Data 0 ;[1] UNUSED
-001156  000000  Data 0 ;[2] UNUSED
-001157  000000  Data 0 ;[3] UNUSED
-001160  000000  Data 0 ;[4] UNUSED
-001161  000000  Data 0 ;[5] UNUSED
-001162  000000  Data 0 ;[6] UNUSED
-001163  000000  Data 0 ;[7] UNUSED
-001164  000000  Data 0 ;[8] UNUSED
-001165  000000  Data 0 ;[9] UNUSED
-001166  000000  CURX1: Data 0 ;[10] CURX1: saved current X1 pointer value
+                LOC 700
+001274  000000  WORK: Data 0 ;[0] UNUSED
+001275  000000  Data 0 ;[1] UNUSED
+001276  000000  Data 0 ;[2] UNUSED
+001277  000000  Data 0 ;[3] UNUSED
+001300  000000  Data 0 ;[4] UNUSED
+001301  000000  Data 0 ;[5] UNUSED
+001302  000000  Data 0 ;[6] UNUSED
+001303  000000  Data 0 ;[7] UNUSED
+001304  000000  Data 0 ;[8] UNUSED
+001305  000000  Data 0 ;[9] UNUSED
+001306  000000  CURX1: Data 0 ;[10] CURX1: saved current X1 pointer value
+001307  000000  INPTR: Data 0 ;[11] INPTR: saved current input pointer value
+001310  000000  SCANPTR: Data 0 ;[12] paragraph scan pointer
+001311  000000  WORDPTR: Data 0 ;[13] candidate paragraph word pointer
+001312  000000  MATCHFLAG: Data 0 ;[14] 1 if exact match found
+001313  000000  CMPINPTR: Data 0 ;[15] input compare pointer
+
+; =========================================================
+; RESULT TEXT DATA
+; =========================================================
+
+                LOC 760
+001370  000106  FOUNDTXT: Data 70 ;F
+001371  000117  Data 79 ;O
+001372  000125  Data 85 ;U
+001373  000116  Data 78 ;N
+001374  000104  Data 68 ;D
+001375  000000  Data 0
+
+                LOC 770
+001402  000116  NOTFDTXT: Data 78 ;N
+001403  000117  Data 79 ;O
+001404  000124  Data 84 ;T
+001405  000040  Data 32 ;space
+001406  000106  Data 70 ;F
+001407  000117  Data 79 ;O
+001410  000125  Data 85 ;U
+001411  000116  Data 78 ;N
+001412  000104  Data 68 ;D
+001413  000000  Data 0
