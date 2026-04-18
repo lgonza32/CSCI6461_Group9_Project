@@ -23,7 +23,7 @@ CSCI6461_GROUP9_PROJECT/
 │  ├─ images/
 │  ├─ part1_test cases/
 │  ├─ part2_test cases/
-│  └─ part2_test cases/
+│  └─ part3_test cases/
 ├─ lib/
 ├─ out/
 ├─ src/
