@@ -8,34 +8,34 @@
 ; 4. Print the prompt "TYPE WORD THEN SPACE"
 ; 5. Read one input word into the INPUTBUF page
 ; 6. Search the paragraph for a whole-word exact match
-; 7. Print FOUND or NOT FOUND
+; 7. If found, print:
+;       FOUND
+;       SENTENCE n
+;       WORD m
+;    otherwise print:
+;       NOT FOUND
 ; 8. Halt
 ;
 ; Implementation notes:
 ; - Uses base-address indexing because the instruction Address
 ;   field is only 5 bits.
 ; - X1 is used as the moving pointer into the active text page.
-; - X2 is reserved for the WORK page base.
+; - X2 is used as the current input compare pointer during compare.
 ; - X3 is used as the active code-page base for jumps between
 ;   the main page, print page, prompt pages, input page,
-;   search page, compare page, and result pages.
+;   search page, compare page, skip page, and result pages.
 ; =========================================================
 
 LOC 0
 
-BOOT:       LDX 1,PARABASEPTR          ; Load X1 with base address of PARAGRAPH page
-            LDX 2,WORKBASEPTR          ; Load X2 with base address of WORK page
-            LDX 3,CODE1PTR             ; Load X3 with base address of main code page
+BOOT:       LDX 1,PARABASEPTR
+            LDX 2,WORKBASEPTR
+            LDX 3,CODE1PTR
 
-            ; Save the current X1 value into WORK[CURX1] so the program
-            ; can increment and reload the active pointer through memory.
             STX 1,X1CURPTR,1
-
-            ; jump into main code page base
             JMA 3,0
 
 ZERO:           Data 0
-CMPEXTPTR:      Data 384
 SPACECHAR:      Data 32
 PERIODCHAR:     Data 46
 NEWLINECHAR:    Data 10
@@ -45,6 +45,7 @@ PROMPT1BASEPTR: Data 600
 PROMPT2BASEPTR: Data 620
 INPUTBASEPTR:   Data 650
 WORKBASEPTR:    Data 700
+
 CODE1PTR:       Data 64
 PRINTPTR:       Data 96
 INPUTPTR:       Data 128
@@ -54,9 +55,10 @@ SEARCHPTR:      Data 224
 CMPPTRLBL:      Data 256
 FOUNDPTR:       Data 288
 NOTFOUNDPTR:    Data 320
+CMPEXTPTR:      Data 384
+SEARCH2PTR:     Data 416
 
-; low-memory indirect pointers
-SKIPPTR:        Data 352
+; low-memory indirect pointers into WORK page / text pages
 X1CURPTR:       Data 710
 INPTRPTR:       Data 711
 SCANPTRPTR:     Data 712
@@ -67,76 +69,49 @@ NOTFDBASEPTR:   Data 770
 
 ; =========================================================
 ; MAIN CODE PAGE
-; Responsibilities:
-; - initialize paragraph print flow
-; - jump to the print page
-; - jump to the first prompt page
-; - jump to the second prompt page
-; - jump to the input page
-; - jump to the search page
-; - halt after result output completes
 ; =========================================================
 
 LOC 64
 CODE1:          LDX 1,PARABASEPTR
                 STX 1,X1CURPTR,1
 
-                ; jump to print page
                 LDX 3,PRINTPTR
                 JMA 3,0
 
-RET_PRINT:      LDX 1,PROMPT1BASEPTR            ; reset X1 to start of first prompt string
+RET_PRINT:      LDX 1,PROMPT1BASEPTR
                 STX 1,X1CURPTR,1
 
-                ; jump to first prompt page
                 LDX 3,PROMPT1PTR
                 JMA 3,0
 
 RET_PROMPT1:    LDR 0,0,NEWLINECHAR
                 OUT 0,1
 
-                ; reset X1 to start of second prompt string
                 LDX 1,PROMPT2BASEPTR
                 STX 1,X1CURPTR,1
 
-                ; jump to second prompt page
                 LDX 3,PROMPT2PTR
                 JMA 3,0
 
 RET_PROMPT2:    LDR 0,0,NEWLINECHAR
                 OUT 0,1
 
-                ; reset X1 to start of input buffer
                 LDX 1,INPUTBASEPTR
                 STX 1,INPTRPTR,1
 
-                ; jump to input page
                 LDX 3,INPUTPTR
                 JMA 3,0
 
-RET_INPUT:      LDX 1,PARABASEPTR          ; reset scan pointer to start of paragraph
-                STX 1,SCANPTRPTR,1
-
-                LDR 0,0,ZERO
-                STR 0,2,MATCHFLAG-WORK
-
-                ; jump to search page
-                LDX 3,SEARCHPTR
-                JMA 3,0
+RET_INPUT:      HLT
 
 ; =========================================================
 ; PRINT PAGE
-; Responsibilities:
-; - load one character at a time from the paragraph
-; - stop at the 0 sentinel
-; - print each character to the console printer
 ; =========================================================
 
 LOC 96
 PRINTPAGE:      LDX 1,X1CURPTR,1
 
 PRINTLOOP:      LDR 0,1,0
-
                 JZ 0,3,PRINTDONE-PRINTPAGE
 
                 OUT 0,1
@@ -154,12 +129,6 @@ PRINTDONE:      LDX 3,CODE1PTR
 
 ; =========================================================
 ; INPUT PAGE
-; Responsibilities:
-; - read one character at a time from the keyboard
-; - stop when SPACE is entered
-; - stop when NEWLINE is entered
-; - store each character into INPUTBUF
-; - write 0 sentinel at the end of the buffer
 ; =========================================================
 
 LOC 128
@@ -167,21 +136,16 @@ INPUTPAGE:      LDX 1,INPTRPTR,1
 
 INPUTLOOP:      IN 0,0
 
-                ; stop input on SPACE
                 LDR 1,0,SPACECHAR
                 TRR 0,1
                 JCC 3,3,INPUTDONE-INPUTPAGE
 
-                ; stop input on NEWLINE
                 LDR 1,0,NEWLINECHAR
                 TRR 0,1
                 JCC 3,3,INPUTDONE-INPUTPAGE
 
-                ; store character into input buffer
                 STR 0,1,0
 
-                ; increment X1 properly:
-                ; save X1 -> WORK[INPTR]
                 STX 1,INPTRPTR,1
                 LDR 0,0,INPTRPTR,1
                 AIR 0,1
@@ -193,14 +157,26 @@ INPUTLOOP:      IN 0,0
 INPUTDONE:      LDR 0,0,ZERO
                 STR 0,1,0
 
-                LDX 3,CODE1PTR
-                JMA 3,RET_INPUT-CODE1
+                ; initialize search state
+                LDX 1,PARABASEPTR
+                STX 1,SCANPTRPTR,1
+
+                LDR 0,0,ZERO
+                AIR 0,1
+                STR 0,2,SENTNUM-WORK
+
+                LDR 0,0,ZERO
+                STR 0,2,WORDNUM-WORK
+                STR 0,2,INWORDFLAG-WORK
+                STR 0,2,MATCHFLAG-WORK
+                STR 0,2,FOUND_SENT-WORK
+                STR 0,2,FOUND_WORD-WORK
+
+                LDX 3,SEARCHPTR
+                JMA 3,SEARCHLOOP-SEARCHPAGE
 
 ; =========================================================
 ; PROMPT PAGE 1
-; Responsibilities:
-; - print INPUT WORD SEARCH from memory
-; - stop at the 0 sentinel
 ; =========================================================
 
 LOC 160
@@ -223,9 +199,6 @@ PROMPT1DONE:    LDX 3,CODE1PTR
 
 ; =========================================================
 ; PROMPT PAGE 2
-; Responsibilities:
-; - print TYPE WORD THEN SPACE from memory
-; - stop at the 0 sentinel
 ; =========================================================
 
 LOC 192
@@ -250,9 +223,8 @@ PROMPT2DONE:    LDX 3,CODE1PTR
 ; SEARCH PAGE
 ; Responsibilities:
 ; - scan paragraph one character at a time
-; - skip separators
-; - when a word start is found, compare that paragraph word
-;   against INPUTBUF
+; - detect separators on the main search page
+; - delegate word-start and counter updates to SEARCH2PAGE
 ; - jump to FOUND or NOT FOUND result pages
 ; =========================================================
 
@@ -260,75 +232,73 @@ LOC 224
 SEARCHPAGE:     LDX 1,SCANPTRPTR,1
 
 SEARCHLOOP:     LDR 0,1,0
-                JZ 0,3,SEARCHFAIL1-SEARCHPAGE
+                JZ 0,3,FAILLOCAL-SEARCHPAGE
 
-                LDR 1,0,SPACECHAR
-                TRR 0,1
-                JCC 3,3,ADVANCESEP-SEARCHPAGE
-
-                LDR 1,0,PERIODCHAR
-                TRR 0,1
-                JCC 3,3,ADVANCESEP-SEARCHPAGE
-
+                ; newline does not affect word/sentence count
                 LDR 1,0,NEWLINECHAR
                 TRR 0,1
-                JCC 3,3,ADVANCESEP-SEARCHPAGE
+                JCC 3,3,NEWLINELOCAL-SEARCHPAGE
 
-                STX 1,WORDPTRPTR,1
+                ; space ends current word
+                LDR 1,0,SPACECHAR
+                TRR 0,1
+                JCC 3,3,SPACELOCAL-SEARCHPAGE
 
-                LDX 1,INPUTBASEPTR
-                STX 1,CMPINPTRPTR,1
+                ; period ends current word and sentence
+                LDR 1,0,PERIODCHAR
+                TRR 0,1
+                JCC 3,3,PERIODLOCAL-SEARCHPAGE
 
-                LDR 0,0,ZERO
-                STR 0,2,MATCHFLAG-WORK
+                ; non-separator character
+                ; if already inside a word, just advance
+                LDR 0,2,INWORDFLAG-WORK
+                JZ 0,3,STARTLOCAL-SEARCHPAGE
 
-                LDX 3,CMPPTRLBL
-                JMA 3,0
+ADVLETTERLOCAL: LDX 3,SEARCH2PTR
+                JMA 3,ADVANCECHAR2-SEARCH2PAGE
 
 RET_COMPARE:    LDR 0,2,MATCHFLAG-WORK
-                JZ 0,3,TO_SKIPPAGE-SEARCHPAGE
+                JZ 0,3,ADVLETTERLOCAL-SEARCHPAGE
 
+                ; match found, print FOUND page immediately
                 LDX 3,FOUNDPTR
                 JMA 3,0
 
-ADVANCESEP:     STX 1,SCANPTRPTR,1
-                LDR 0,0,SCANPTRPTR,1
-                AIR 0,1
-                STR 0,0,SCANPTRPTR,1
-                LDX 1,SCANPTRPTR,1
-                JMA 3,SEARCHLOOP-SEARCHPAGE
-
-TO_SKIPPAGE:    LDX 3,SKIPPTR
+FAILLOCAL:      LDX 3,NOTFOUNDPTR
                 JMA 3,0
 
-SEARCHFAIL1:    LDX 3,NOTFOUNDPTR
+NEWLINELOCAL:   LDX 3,SEARCH2PTR
+                JMA 3,HANDLENEWLINE2-SEARCH2PAGE
+
+SPACELOCAL:     LDX 3,SEARCH2PTR
+                JMA 3,HANDLESPACE2-SEARCH2PAGE
+
+PERIODLOCAL:    LDX 3,SEARCH2PTR
+                JMA 3,HANDLEPERIOD2-SEARCH2PAGE
+
+STARTLOCAL:     LDX 3,SEARCH2PTR
                 JMA 3,0
 
 ; =========================================================
 ; COMPARE PAGE
-; Responsibilities:
-; - compare paragraph word at WORDPTR against INPUTBUF
-; - set MATCHFLAG = 1 only for an exact whole-word match
-; - return to search page
 ; =========================================================
 
 LOC 256
 COMPAREPAGE:    LDX 1,WORDPTRPTR,1
 
 CMPLOOP:        LDR 0,1,0
-                
+
                 ; X2 <- current input pointer
                 LDX 2,CMPINPTRPTR,1
 
                 ; R1 <- current input character
                 LDR 1,2,0
 
-                ; if input char == 0, paragraph must be at a boundary to match
+                ; if input char == 0, paragraph must be at boundary
                 JZ 1,3,CHECKBOUND-COMPAREPAGE
 
-                ; if chars differ, fail
                 TRR 0,1
-                JCC 3,3,TO_CMPEXT-COMPAREPAGE
+                JCC 3,3,CMPEQUAL-COMPAREPAGE
 
                 LDX 3,SEARCHPTR
                 JMA 3,RET_COMPARE-SEARCHPAGE
@@ -352,7 +322,7 @@ CHECKBOUND:     LDR 1,0,SPACECHAR
                 LDX 3,SEARCHPTR
                 JMA 3,RET_COMPARE-SEARCHPAGE
 
-TO_CMPEXT:      LDX 3,CMPEXTPTR
+CMPEQUAL:       LDX 3,CMPEXTPTR
                 JMA 3,0
 
 TO_CMPSUCCESS:  LDX 3,CMPEXTPTR
@@ -362,6 +332,8 @@ TO_CMPSUCCESS:  LDX 3,CMPEXTPTR
 ; FOUND PAGE
 ; Responsibilities:
 ; - print FOUND
+; - print sentence number
+; - print word number
 ; - halt
 ; =========================================================
 
@@ -369,7 +341,7 @@ LOC 288
 FOUNDPAGE:      LDX 1,FOUNDTXTPTR
 
 FOUNDLOOP:      LDR 0,1,0
-                JZ 0,3,FOUNDDONE-FOUNDPAGE
+                JZ 0,3,PRINTSENTNUM-FOUNDPAGE
                 OUT 0,1
 
                 STX 1,X1CURPTR,1
@@ -377,16 +349,29 @@ FOUNDLOOP:      LDR 0,1,0
                 AIR 0,1
                 STR 0,0,X1CURPTR,1
                 LDX 1,X1CURPTR,1
-
                 JMA 3,FOUNDLOOP-FOUNDPAGE
+
+PRINTSENTNUM:   LDR 0,0,NEWLINECHAR
+                OUT 0,1
+
+                ; print sentence digit as ASCII: PERIODCHAR(46) + 2 = '0'(48)
+                LDR 0,2,SENTNUM-WORK
+                AMR 0,0,PERIODCHAR
+                AIR 0,2
+                OUT 0,1
+
+                LDR 0,0,NEWLINECHAR
+                OUT 0,1
+
+                LDR 0,2,WORDNUM-WORK
+                AMR 0,0,PERIODCHAR
+                AIR 0,2
+                OUT 0,1
 
 FOUNDDONE:      HLT
 
 ; =========================================================
 ; NOT FOUND PAGE
-; Responsibilities:
-; - print NOT FOUND
-; - halt
 ; =========================================================
 
 LOC 320
@@ -440,6 +425,10 @@ ADVANCE2:       STX 1,SCANPTRPTR,1
                 AIR 0,1
                 STR 0,0,SCANPTRPTR,1
 
+                ; separator means not inside word anymore
+                LDR 0,0,ZERO
+                STR 0,2,INWORDFLAG-WORK
+
                 LDX 3,SEARCHPTR
                 JMA 3,SEARCHLOOP-SEARCHPAGE
 
@@ -474,132 +463,192 @@ CMPSUCCESS2:    LDR 0,0,ZERO
                 JMA 3,RET_COMPARE-SEARCHPAGE
 
 ; =========================================================
+; SEARCH PAGE 2
+; Responsibilities:
+; - handle word-start bookkeeping
+; - handle sentence/word counter updates
+; - advance the paragraph pointer and resume search
+; =========================================================
+
+LOC 416
+
+; starting a new word
+SEARCH2PAGE:    LDR 0,0,ZERO
+                AIR 0,1
+                STR 0,2,INWORDFLAG-WORK
+
+                ; WORDNUM++
+                LDR 0,2,WORDNUM-WORK
+                AIR 0,1
+                STR 0,2,WORDNUM-WORK
+
+                ; save candidate word start
+                STX 1,WORDPTRPTR,1
+
+                ; reset input compare pointer to INPUTBUF
+                LDX 1,INPUTBASEPTR
+                STX 1,CMPINPTRPTR,1
+
+                ; clear match flag
+                LDR 0,0,ZERO
+                STR 0,2,MATCHFLAG-WORK
+
+                ; restore paragraph pointer into X1 for compare
+                LDX 1,WORDPTRPTR,1
+                LDX 3,CMPPTRLBL
+                JMA 3,0
+
+HANDLENEWLINE2: JMA 3,ADVANCECHAR2-SEARCH2PAGE
+
+; space ends current word
+HANDLESPACE2:   LDR 0,0,ZERO
+                STR 0,2,INWORDFLAG-WORK
+                JMA 3,ADVANCECHAR2-SEARCH2PAGE
+
+; period ends current word and sentence
+HANDLEPERIOD2:  LDR 0,0,ZERO
+                STR 0,2,INWORDFLAG-WORK
+                STR 0,2,WORDNUM-WORK
+
+                ; SENTNUM++
+                LDR 0,2,SENTNUM-WORK
+                AIR 0,1
+                STR 0,2,SENTNUM-WORK
+                JMA 3,ADVANCECHAR2-SEARCH2PAGE
+
+ADVANCECHAR2:   STX 1,SCANPTRPTR,1
+                LDR 0,0,SCANPTRPTR,1
+                AIR 0,1
+                STR 0,0,SCANPTRPTR,1
+                LDX 1,SCANPTRPTR,1
+                LDX 3,SEARCHPTR
+                JMA 3,SEARCHLOOP-SEARCHPAGE
+
+; =========================================================
 ; PARAGRAPH PAGE
-; Stored as ASCII decimal values, one character per word.
-; Ends with 0 sentinel.
 ; =========================================================
 
 LOC 480
-PARAGRAPH:      Data 73      ; I
-                Data 32      ; space
-                Data 67      ; C
-                Data 76      ; L
-                Data 73      ; I
-                Data 77      ; M
-                Data 66      ; B
-                Data 46      ; .
-                Data 10      ; newline
+PARAGRAPH:      Data 73
+                Data 32
+                Data 67
+                Data 76
+                Data 73
+                Data 77
+                Data 66
+                Data 46
+                Data 10
 
-                Data 77      ; M
-                Data 89      ; Y
-                Data 32      ; space
-                Data 77      ; M
-                Data 79      ; O
-                Data 77      ; M
-                Data 32      ; space
-                Data 82      ; R
-                Data 85      ; U
-                Data 78      ; N
-                Data 83      ; S
-                Data 46      ; .
-                Data 10      ; newline
+                Data 77
+                Data 89
+                Data 32
+                Data 77
+                Data 79
+                Data 77
+                Data 32
+                Data 82
+                Data 85
+                Data 78
+                Data 83
+                Data 46
+                Data 10
 
-                Data 77      ; M
-                Data 89      ; Y
-                Data 32      ; space
-                Data 68      ; D
-                Data 65      ; A
-                Data 68      ; D
-                Data 32      ; space
-                Data 66      ; B
-                Data 73      ; I
-                Data 75      ; K
-                Data 69      ; E
-                Data 83      ; S
-                Data 46      ; .
-                Data 10      ; newline
+                Data 77
+                Data 89
+                Data 32
+                Data 68
+                Data 65
+                Data 68
+                Data 32
+                Data 66
+                Data 73
+                Data 75
+                Data 69
+                Data 83
+                Data 46
+                Data 10
 
-                Data 77      ; M
-                Data 89      ; Y
-                Data 32      ; space
-                Data 83      ; S
-                Data 73      ; I
-                Data 83      ; S
-                Data 84      ; T
-                Data 69      ; E
-                Data 82      ; R
-                Data 32      ; space
-                Data 83      ; S
-                Data 73      ; I
-                Data 78      ; N
-                Data 71      ; G
-                Data 83      ; S
-                Data 46      ; .
-                Data 10      ; newline
+                Data 77
+                Data 89
+                Data 32
+                Data 83
+                Data 73
+                Data 83
+                Data 84
+                Data 69
+                Data 82
+                Data 32
+                Data 83
+                Data 73
+                Data 78
+                Data 71
+                Data 83
+                Data 46
+                Data 10
 
-                Data 77      ; M
-                Data 89      ; Y
-                Data 32      ; space
-                Data 71      ; G
-                Data 82      ; R
-                Data 65      ; A
-                Data 78      ; N
-                Data 68      ; D
-                Data 80      ; P
-                Data 65      ; A
-                Data 32      ; space
-                Data 72      ; H
-                Data 73      ; I
-                Data 75      ; K
-                Data 69      ; E
-                Data 83      ; S
-                Data 46      ; .
-                Data 10      ; newline
+                Data 77
+                Data 89
+                Data 32
+                Data 71
+                Data 82
+                Data 65
+                Data 78
+                Data 68
+                Data 80
+                Data 65
+                Data 32
+                Data 72
+                Data 73
+                Data 75
+                Data 69
+                Data 83
+                Data 46
+                Data 10
 
-                Data 77      ; M
-                Data 89      ; Y
-                Data 32      ; space
-                Data 71      ; G
-                Data 82      ; R
-                Data 65      ; A
-                Data 78      ; N
-                Data 68      ; D
-                Data 77      ; M
-                Data 65      ; A
-                Data 32      ; space
-                Data 71      ; G
-                Data 65      ; A
-                Data 82      ; R
-                Data 68      ; D
-                Data 69      ; E
-                Data 78      ; N
-                Data 83      ; S
-                Data 46      ; .
-                Data 10      ; newline
-                Data 0       ; end sentinel
+                Data 77
+                Data 89
+                Data 32
+                Data 71
+                Data 82
+                Data 65
+                Data 78
+                Data 68
+                Data 77
+                Data 65
+                Data 32
+                Data 71
+                Data 65
+                Data 82
+                Data 68
+                Data 69
+                Data 78
+                Data 83
+                Data 46
+                Data 10
+                Data 0
 
 ; =========================================================
 ; PROMPT PAGE 1 DATA
 ; =========================================================
 
 LOC 600
-PROMPT1:        Data 73      ; I
-                Data 78      ; N
-                Data 80      ; P
-                Data 85      ; U
-                Data 84      ; T
-                Data 32      ; space
-                Data 87      ; W
-                Data 79      ; O
-                Data 82      ; R
-                Data 68      ; D
-                Data 32      ; space
-                Data 83      ; S
-                Data 69      ; E
-                Data 65      ; A
-                Data 82      ; R
-                Data 67      ; C
-                Data 72      ; H
+PROMPT1:        Data 73
+                Data 78
+                Data 80
+                Data 85
+                Data 84
+                Data 32
+                Data 87
+                Data 79
+                Data 82
+                Data 68
+                Data 32
+                Data 83
+                Data 69
+                Data 65
+                Data 82
+                Data 67
+                Data 72
                 Data 0
 
 ; =========================================================
@@ -607,26 +656,26 @@ PROMPT1:        Data 73      ; I
 ; =========================================================
 
 LOC 620
-PROMPT2:        Data 84      ; T
-                Data 89      ; Y
-                Data 80      ; P
-                Data 69      ; E
-                Data 32      ; space
-                Data 87      ; W
-                Data 79      ; O
-                Data 82      ; R
-                Data 68      ; D
-                Data 32      ; space
-                Data 84      ; T
-                Data 72      ; H
-                Data 69      ; E
-                Data 78      ; N
-                Data 32      ; space
-                Data 83      ; S
-                Data 80      ; P
-                Data 65      ; A
-                Data 67      ; C
-                Data 69      ; E
+PROMPT2:        Data 84
+                Data 89
+                Data 80
+                Data 69
+                Data 32
+                Data 87
+                Data 79
+                Data 82
+                Data 68
+                Data 32
+                Data 84
+                Data 72
+                Data 69
+                Data 78
+                Data 32
+                Data 83
+                Data 80
+                Data 65
+                Data 67
+                Data 69
                 Data 0
 
 ; =========================================================
@@ -656,43 +705,68 @@ INPUTBUF:       Data 0
 ; =========================================================
 
 LOC 700
-WORK:           Data 0       ; [0] UNUSED
-                Data 0       ; [1] UNUSED
-                Data 0       ; [2] UNUSED
-                Data 0       ; [3] UNUSED
-                Data 0       ; [4] UNUSED
-                Data 0       ; [5] UNUSED
-                Data 0       ; [6] UNUSED
-                Data 0       ; [7] UNUSED
-                Data 0       ; [8] UNUSED
-                Data 0       ; [9] UNUSED
-CURX1:          Data 0       ; [10] CURX1: saved current X1 pointer value
-INPTR:          Data 0       ; [11] INPTR: saved current input pointer value
-SCANPTR:        Data 0       ; [12] paragraph scan pointer
-WORDPTR:        Data 0       ; [13] candidate paragraph word pointer
-MATCHFLAG:      Data 0       ; [14] 1 if exact match found
-CMPINPTR:       Data 0       ; [15] input compare pointer
+WORK:           Data 0
+                Data 0
+                Data 0
+                Data 0
+                Data 0
+                Data 0
+                Data 0
+                Data 0
+                Data 0
+                Data 0
+CURX1:          Data 0
+INPTR:          Data 0
+SCANPTR:        Data 0
+WORDPTR:        Data 0
+MATCHFLAG:      Data 0
+CMPINPTR:       Data 0
+SENTNUM:        Data 0
+WORDNUM:        Data 0
+FOUND_SENT:     Data 0
+FOUND_WORD:     Data 0
+INWORDFLAG:     Data 0
 
 ; =========================================================
 ; RESULT TEXT DATA
 ; =========================================================
 
 LOC 760
-FOUNDTXT:       Data 70      ; F
-                Data 79      ; O
-                Data 85      ; U
-                Data 78      ; N
-                Data 68      ; D
+FOUNDTXT:       Data 70
+                Data 79
+                Data 85
+                Data 78
+                Data 68
                 Data 0
 
 LOC 770
-NOTFDTXT:       Data 78      ; N
-                Data 79      ; O
-                Data 84      ; T
-                Data 32      ; space
-                Data 70      ; F
-                Data 79      ; O
-                Data 85      ; U
-                Data 78      ; N
-                Data 68      ; D
+NOTFDTXT:       Data 78
+                Data 79
+                Data 84
+                Data 32
+                Data 70
+                Data 79
+                Data 85
+                Data 78
+                Data 68
+                Data 0
+
+LOC 780
+SENTTXT:        Data 83
+                Data 69
+                Data 78
+                Data 84
+                Data 69
+                Data 78
+                Data 67
+                Data 69
+                Data 32
+                Data 0
+
+LOC 790
+WORDTXT:        Data 87
+                Data 79
+                Data 82
+                Data 68
+                Data 32
                 Data 0
