@@ -400,7 +400,7 @@ NOTFPG:         LDX 1,NOTFOUNDPTR
 
                 ; advance X1 to start of inline NOT FOUND text
                 LDR 0,0,X1CURPTR,1
-                AIR 0,11
+                AIR 0,16
                 STR 0,0,X1CURPTR,1
                 LDX 1,X1CURPTR,1
 
